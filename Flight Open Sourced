@@ -210,7 +210,7 @@ imageButton1.BackgroundTransparency = 1
 imageButton1.Parent = ScreenGui
 
 local imageButton2 = Instance.new("ImageButton")
-imageButton2.Size = UDim2.new(0, 50, 0, 50)
+imageButton2.Size = UDim2.new(0, 45, 0, 45)
 imageButton2.Position = UDim2.new(0.5, 200, 0.5, -25)
 imageButton2.Image = "rbxassetid://6256840888"
 imageButton2.BackgroundTransparency = 1
