@@ -1,0 +1,103 @@
+Players = game:GetService("Players")
+RunService = game:GetService("RunService")
+WorkspaceRef = workspace
+
+LocalPlayerRef = Players.LocalPlayer
+CharacterRef = LocalPlayerRef.Character or LocalPlayerRef.CharacterAdded:Wait()
+HRP = CharacterRef:WaitForChild("HumanoidRootPart")
+
+PartRef = Instance.new("Part")
+PartRef.Size = Vector3.new(1,1,1)
+PartRef.Anchored = true
+PartRef.CanCollide = false
+PartRef.Transparency = 1
+PartRef.Parent = WorkspaceRef
+
+ParticleRef = Instance.new("ParticleEmitter")
+ParticleRef.Brightness = 10
+ParticleRef.Drag = 0
+ParticleRef.EmissionDirection = Enum.NormalId.Top
+ParticleRef.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+ParticleRef.FlipbookFramerate = NumberRange.new(1,1)
+ParticleRef.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+ParticleRef.Lifetime = NumberRange.new(0.1,0.35)
+ParticleRef.LightEmission = 1
+ParticleRef.LightInfluence = 0
+ParticleRef.LockedToPart = false
+ParticleRef.Orientation = Enum.ParticleOrientation.VelocityParallel
+ParticleRef.Rate = 12
+ParticleRef.RotSpeed = NumberRange.new(0,0)
+ParticleRef.Rotation = NumberRange.new(-360,360)
+ParticleRef.Shape = Enum.ParticleEmitterShape.Box
+ParticleRef.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+ParticleRef.ShapePartial = 1
+ParticleRef.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+ParticleRef.Size = NumberSequence.new({
+    NumberSequenceKeypoint.new(0,3,0),
+    NumberSequenceKeypoint.new(1,3,0)
+})
+ParticleRef.Speed = NumberRange.new(0.009,0.009)
+ParticleRef.Texture = "rbxassetid://11812165090"
+ParticleRef.TimeScale = 1
+ParticleRef.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0,0,0),
+    NumberSequenceKeypoint.new(1,0,0)
+})
+ParticleRef.VelocityInheritance = 0
+ParticleRef.ZOffset = 2
+ParticleRef.Acceleration = Vector3.new(0,0,0)
+ParticleRef.Enabled = false
+ParticleRef.Parent = PartRef
+
+-- Set particle color based on current speed state
+if _G.Zoom then
+    ParticleRef.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(160,220,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0,120,255))
+    })
+elseif _G.GodOfSpeed then
+    ParticleRef.Color = ColorSequence.new(
+        Color3.fromRGB(255,255,255),
+        Color3.fromRGB(255,255,255)
+    )
+elseif _G.NWA then
+    ParticleRef.Color = ColorSequence.new(
+        Color3.fromRGB(200,180,255),
+        Color3.fromRGB(130,0,255)
+    )
+elseif _G.KidFlash then
+    ParticleRef.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,150)), -- light yellow
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,0))    -- bright yellow
+    })
+else
+    ParticleRef.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.new(1,0.231,0.129)),
+        ColorSequenceKeypoint.new(1, Color3.new(1,0.231,0.129))
+    })
+end
+
+Running = false
+ConnectionRef = nil
+
+function EnableLightningGlobal()
+    if Running then return end
+    Running = true
+    ParticleRef.Enabled = true
+    ParticleRef:Emit(15)
+    ConnectionRef = RunService.RenderStepped:Connect(function()
+        if HRP and HRP.Parent then
+            PartRef.CFrame = HRP.CFrame
+        end
+    end)
+end
+
+function DisableLightningGlobal()
+    if not Running then return end
+    Running = false
+    ParticleRef.Enabled = false
+    if ConnectionRef then
+        ConnectionRef:Disconnect()
+        ConnectionRef = nil
+    end
+end
