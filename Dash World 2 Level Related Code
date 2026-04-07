@@ -7468,6 +7468,143 @@ local v1 = {
 }
 return v1
 
+local v1 = game:GetService("ReplicatedStorage").Shared
+local v_u_2 = require(v1.Utility)
+local v3 = {}
+local v_u_4 = {
+	["color"] = Color3.new(1, 1, 1),
+	["opacity"] = 1,
+	["copy_color"] = false,
+	["blending"] = false,
+	["pcol1"] = false,
+	["pcol2"] = false,
+	["hue"] = 0,
+	["saturation"] = 1,
+	["brightness"] = 1,
+	["copy_channel_id"] = 0,
+	["copy_opacity"] = false
+}
+function v3.new()
+	-- upvalues: (copy) v_u_2, (copy) v_u_4
+	return v_u_2:CloneTable(v_u_4)
+end
+function v3.ResolveChannelId(_, p5)
+	if typeof(p5) == "string" then
+		return p5
+	elseif p5 == -1 then
+		return "P1"
+	elseif p5 == -2 then
+		return "P2"
+	elseif p5 == -3 then
+		return "BG"
+	elseif p5 == -4 then
+		return "G"
+	elseif p5 == -5 then
+		return "G2"
+	elseif p5 == -6 then
+		return "L"
+	elseif p5 == -7 then
+		return "OBJ"
+	elseif p5 == -8 then
+		return "3DL"
+	elseif p5 == -9 then
+		return "MG"
+	elseif p5 == -10 then
+		return "MG2"
+	elseif p5 == 1000 then
+		return "WHITE"
+	elseif p5 == 1001 then
+		return "BLACK"
+	elseif p5 > 0 and p5 < 1000 then
+		return p5
+	else
+		return nil
+	end
+end
+function v3.IsChannelIdBlendingRestricted(p6, p7)
+	local v8 = p6:ResolveChannelId(p7)
+	return (v8 == "BG" or (v8 == "G" or (v8 == "G2" or v8 == "WHITE"))) and true or v8 == "BLACK"
+end
+return v3
+local v_u_1 = {}
+v_u_1.__index = v_u_1
+function v_u_1.new()
+	-- upvalues: (copy) v_u_1
+	local v2 = v_u_1
+	local v3 = setmetatable({}, v2)
+	v3._tasks = {}
+	return v3
+end
+function v_u_1.GiveTask(p4, p5)
+	local v6 = #p4._tasks + 1
+	p4._tasks[v6] = p5
+	return p5, v6
+end
+function v_u_1.Cleanup(p7)
+	for v8 in p7._tasks do
+		p7:Clean(v8)
+	end
+	table.clear(p7._tasks)
+end
+function v_u_1.Clean(p9, p10)
+	local v11 = p9._tasks[p10]
+	if typeof(v11) == "RBXScriptConnection" then
+		v11:Disconnect()
+	elseif typeof(v11) == "function" then
+		local v12, v13 = pcall(v11)
+		if not v12 then
+			warn(string.format("[Maid] task_id %s failed to cleanup with error message \'%s\' (function call)", tostring(p10), (tostring(v13))))
+		end
+	else
+		if typeof(v11) ~= "thread" then
+			if v11.Destroy then
+				local v14 = v11.Destroy
+				if typeof(v14) == "function" then
+					local v15, v16 = pcall(v11.Destroy, v11)
+					if not v15 then
+						warn(string.format("[Maid] task_id %s failed to cleanup with error message \'%s\' (destroy call)", tostring(p10), (tostring(v16))))
+					end
+					goto l3
+				end
+			end
+			if v11.Disconnect then
+				local v17 = v11.Disconnect
+				if typeof(v17) == "function" then
+					local v18, v19 = pcall(v11.Disconnect, v11)
+					if not v18 then
+						warn(string.format("[Maid] task_id %s failed to cleanup with error message \'%s\' (disconnect call)", tostring(p10), (tostring(v19))))
+					end
+				end
+			end
+			goto l3
+		end
+		coroutine.close(v11)
+	end
+	::l3::
+	p9._tasks[p10] = nil
+end
+function v_u_1.CleanupDeferred(p_u_20, p21, p22)
+	local v_u_23 = p_u_20:GiveTask(p21)
+	task.delay(p22, function()
+		-- upvalues: (copy) p_u_20, (copy) v_u_23
+		p_u_20:Clean(v_u_23)
+	end)
+end
+function v_u_1.Size(p24)
+	local v25 = 0
+	for _ in p24._tasks do
+		v25 = v25 + 1
+	end
+	return v25
+end
+function v_u_1.IsEmpty(p26)
+	return p26:Size() == 0
+end
+function v_u_1.Destroy(p27)
+	p27:Cleanup()
+	table.clear(p27)
+end
+return v_u_1
 
 
 
