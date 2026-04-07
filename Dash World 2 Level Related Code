@@ -7606,7 +7606,1682 @@ function v_u_1.Destroy(p27)
 end
 return v_u_1
 
+local v1 = game:GetService("ReplicatedStorage").Shared
+local v_u_2 = require(v1.Classes.Level.ColorChannel)
+local v_u_3 = require(v1.Toolbox)
+local v_u_4 = require(v1.Info.Easing)
+require(v1.Utility)
+local v_u_5 = require(script.TriggerHandlers)
+local v_u_6 = {}
+v_u_6.__index = v_u_6
+function v_u_6.new(p7, p8)
+	-- upvalues: (copy) v_u_6
+	local v9 = v_u_6
+	local v10 = setmetatable({}, v9)
+	v10.object = p7
+	v10.level_ptr = p8
+	v10.time_elapsed = 0
+	v10.active = false
+	v10.was_triggered_once = false
+	v10.extraData = {}
+	return v10
+end
+function v_u_6.GetBlockData(p11)
+	return p11.level_ptr.GameObjects[p11.object]
+end
+function v_u_6.HasTag(p12, p13)
+	return p12:GetBlockData():HasTag(p13)
+end
+function v_u_6.GetTriggerValue(p14, p15)
+	return p14:GetBlockData():GetTriggerValue(p15)
+end
+function v_u_6.Reset(p16)
+	p16.time_elapsed = 0
+	p16.active = false
+	p16.was_triggered_once = false
+	p16.was_stopped = false
+	table.clear(p16.extraData)
+end
+function v_u_6.GetPlayerTouched(p17)
+	if not p17.initiatedPlayerId then
+		return nil
+	end
+	local v18 = p17.level_ptr.Players[p17.initiatedPlayerId]
+	if v18.playerId ~= p17.initiatedPlayerId then
+		v18 = nil
+		for _, v19 in p17.level_ptr.Players do
+			if v19.playerId == p17.initiatedPlayerId then
+				v18 = v19
+			end
+		end
+	end
+	return v18
+end
+function v_u_6.Activate(p20, p21)
+	-- upvalues: (copy) v_u_3, (copy) v_u_2, (copy) v_u_5
+	if (p20.was_triggered_once or p20.was_stopped) and not p20:GetTriggerValue("multi") or p20:HasTag("is_toggled") then
+		return
+	elseif p20.object.Name == "StartPos" then
+		p20:Destroy()
+		return
+	else
+		p20.time_elapsed = 0
+		p20.active = true
+		p20.was_triggered_once = true
+		p20.initiatedPlayerId = p21
+		table.clear(p20.extraData)
+		local v22 = v_u_3.idIndexed[p20:GetBlockData().toolbox_id]
+		local v23 = false
+		for _, v24 in p20.level_ptr.Triggers do
+			if v24.active and v24 ~= p20 then
+				local v25 = v_u_3.idIndexed[v24:GetBlockData().toolbox_id]
+				if v22 == "ColorTrigger" or v22 == "PulseTrigger" then
+					if (v25 == "ColorTrigger" or v25 == "PulseTrigger") and v24:GetTriggerValue("id") == p20:GetTriggerValue("id") then
+						v24:Deactivate()
+						if v25 == "PulseTrigger" and (v24.extraData.last_copy_color ~= nil and (v24.extraData.last_pcol1 ~= nil and (v24.extraData.last_pcol2 ~= nil and v24.extraData.startColor ~= nil))) then
+							p20.extraData.last_copy_color = v24.extraData.last_copy_color
+							p20.extraData.last_pcol1 = v24.extraData.last_pcol1
+							p20.extraData.last_pcol2 = v24.extraData.last_pcol2
+							p20.extraData.startColor = v24.extraData.startColor
+							v23 = true
+						end
+					end
+				elseif v22 == "ShakeTrigger" and v25 == "ShakeTrigger" then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "CameraZoomTrigger" and v25 == "CameraZoomTrigger" then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "CameraOffsetTrigger" and v25 == "CameraOffsetTrigger" then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "CameraRotateTrigger" and v25 == "CameraRotateTrigger" then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "CameraStaticTrigger" and v25 == "CameraStaticTrigger" then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "AlphaTrigger" and (v25 == "AlphaTrigger" and v24:GetTriggerValue("group_id") == p20:GetTriggerValue("group_id")) then
+					v24:Deactivate()
+					v23 = true
+				elseif v22 == "CameraEdgeTrigger" and (v25 == "CameraEdgeTrigger" and v24:GetTriggerValue("direction") == p20:GetTriggerValue("direction")) then
+					v24:Deactivate()
+					v23 = true
+				end
+			end
+		end
+		if v22 == "ColorTrigger" then
+			local v26 = p20:GetTriggerValue("id")
+			p20.extraData.startColor = p20.level_ptr:ResolveColorFromId(v26, nil, v_u_2:IsChannelIdBlendingRestricted(v26))
+			p20.extraData.startOpacity = p20.level_ptr:ResolveOpacityFromId(v26)
+			if p20.extraData.startColor and p20.extraData.startOpacity then
+				p20.level_ptr:SetColorChannelData(v26, "copy_color", false)
+				p20.level_ptr:SetColorChannelData(v26, "copy_opacity", false)
+				p20.level_ptr:SetColorChannelData(v26, "pcol1", false)
+				p20.level_ptr:SetColorChannelData(v26, "pcol2", false)
+				p20.extraData.goalColor = p20.level_ptr:ResolveColorFromChannel(p20:GetBlockData().triggerData, nil, nil, false)
+				p20.extraData.goalOpacity = p20.level_ptr:ResolveOpacityFromChannel(p20:GetBlockData().triggerData)
+			else
+				p20:Stop()
+			end
+		elseif v22 == "PulseTrigger" then
+			local v27 = p20:GetTriggerValue("id")
+			local v28 = p20.level_ptr:GetColorChannel(v27)
+			if v28 then
+				if not v23 then
+					p20.extraData.last_copy_color = v28.copy_color
+					p20.extraData.last_pcol1 = v28.pcol1
+					p20.extraData.last_pcol2 = v28.pcol2
+					p20.extraData.startColor = p20.level_ptr:ResolveColorFromChannel(v28, nil, nil, v_u_2:IsChannelIdBlendingRestricted(v27))
+					if not p20.extraData.startColor then
+						p20:Stop()
+						return
+					end
+				end
+				p20.level_ptr:SetColorChannelData(v27, "copy_color", false)
+				p20.level_ptr:SetColorChannelData(v27, "pcol1", false)
+				p20.level_ptr:SetColorChannelData(v27, "pcol2", false)
+				p20.extraData.goalColor = p20.level_ptr:ResolveColorFromChannel(p20:GetBlockData().triggerData, nil, nil, false)
+			else
+				p20:Stop()
+			end
+		else
+			if v22 == "MoveTrigger" then
+				p20.extraData.lastMoveX = 0
+				if p20:GetTriggerValue("lockX_player") then
+					p20.extraData.lastMoveX = p20.level_ptr.Players[1].position.X
+				elseif p20:GetTriggerValue("lockX_camera") then
+					p20.extraData.lastMoveX = p20.level_ptr.Camera:GetCameraX()
+				end
+				p20.extraData.lastMoveY = 0
+				if p20:GetTriggerValue("lockY_player") then
+					p20.extraData.lastMoveY = p20.level_ptr.Players[1].position.Y
+				elseif p20:GetTriggerValue("lockY_camera") then
+					p20.extraData.lastMoveY = p20.level_ptr.Camera:GetCameraY()
+				end
+				p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+				if #p20.extraData.objects == 0 then
+					p20:Stop()
+					return
+				end
+			elseif v22 == "RotateTrigger" then
+				p20.extraData.lastRotation = 0
+				p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+				p20.extraData.center = p20.level_ptr:GetObjectWhichIsGroupParent(p20:GetTriggerValue("center_id"))
+				if #p20.extraData.objects == 0 then
+					p20:Stop()
+					return
+				end
+			else
+				if v22 == "SpawnTrigger" or (v22 == "ToggleTrigger" or (v22 == "OnDeathTrigger" or v22 == "StopTrigger")) then
+					p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+					return
+				end
+				if v22 == "CameraEdgeTrigger" then
+					p20.extraData.center = p20.level_ptr:GetObjectWhichIsGroupParent(p20:GetTriggerValue("group_id"))
+					return
+				end
+				if v22 == "AlphaTrigger" then
+					p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+					p20.extraData.startOpacities = {}
+					if #p20.extraData.objects == 0 then
+						p20:Stop()
+					else
+						for _, v29 in p20.extraData.objects do
+							local v30 = p20.level_ptr.GameObjects[v29]
+							p20.extraData.startOpacities[v29] = v30.opacity
+						end
+					end
+				end
+				if v22 == "ShakeTrigger" then
+					p20.extraData.activated = false
+					return
+				end
+				if v22 == "CameraZoomTrigger" then
+					p20.extraData.startZoom = p20.level_ptr.Camera.zoom
+					return
+				end
+				if v22 == "CameraOffsetTrigger" then
+					p20.extraData.startOffsetX = p20.level_ptr.Camera.offsetX
+					p20.extraData.startOffsetY = p20.level_ptr.Camera.offsetY
+					return
+				end
+				if v22 == "CameraRotateTrigger" then
+					p20.extraData.startRotation = p20.level_ptr.Camera.rotation
+					p20.extraData.newRotation = p20:GetTriggerValue("degrees")
+					if p20:GetTriggerValue("snap360") then
+						local v31 = p20.extraData
+						v31.startRotation = v31.startRotation % 360
+					end
+					if p20:GetTriggerValue("add") then
+						if p20:GetTriggerValue("snap360") then
+							local v32 = p20.extraData.startRotation
+							local v33 = (p20.extraData.newRotation + v32 - v32) % 360
+							if v33 > 180 then
+								v33 = v33 - 360
+							end
+							local v34 = p20.extraData
+							v34.newRotation = v34.newRotation + v33
+						else
+							local v35 = p20.extraData
+							v35.newRotation = v35.newRotation + p20.extraData.startRotation
+						end
+					end
+					if p20:GetTriggerValue("snap360") then
+						local v36 = p20.extraData
+						v36.newRotation = v36.newRotation % 360
+						return
+					end
+				else
+					if v22 == "CameraStaticTrigger" then
+						if p20:GetTriggerValue("exitStatic") then
+							for _, v37 in p20.level_ptr.Triggers do
+								if v37.active and (v37 ~= p20 and v_u_3.idIndexed[v37:GetBlockData().toolbox_id] == "CameraStaticTrigger") then
+									v37:Deactivate()
+								end
+							end
+							if p20:GetTriggerValue("exitInstant") then
+								p20:Stop()
+								return
+							end
+						else
+							local v38 = p20.level_ptr:GetObjectWhichIsGroupParent(p20:GetTriggerValue("group_id"))
+							if not v38 then
+								p20:Stop()
+								return
+							end
+							p20.extraData.center = v38
+							p20.extraData.goalPosition = v38.Position
+						end
+						local v39 = p20.extraData
+						local v40 = p20.level_ptr.Camera.velocityX
+						local v41 = p20.level_ptr.Camera.velocityY
+						v39.velocity = Vector3.new(v40, v41, 0) * 0.25
+						local v42 = p20.extraData
+						local v43 = p20.level_ptr.Camera:GetCameraX(true)
+						local v44 = p20.level_ptr.Camera:GetCameraY(true)
+						v42.currentPosition = Vector3.new(v43, v44, 0)
+						p20.extraData.startPosition = p20.extraData.currentPosition
+						return
+					end
+					if v22 == "ScaleTrigger" then
+						local v45 = p20:GetTriggerValue("scaleX")
+						local v46 = p20:GetTriggerValue("scaleY")
+						p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+						p20.extraData.center = p20.level_ptr:GetObjectWhichIsGroupParent(p20:GetTriggerValue("center_id"))
+						p20.extraData.initialScaleX = 1
+						p20.extraData.initialScaleY = 1
+						p20.extraData.lastAppliedScaleX = 1
+						p20.extraData.lastAppliedScaleY = 1
+						local v47 = p20.extraData
+						if p20:GetTriggerValue("divByX") then
+							v45 = 1 / v45
+						end
+						v47.newScaleX = v45
+						local v48 = p20.extraData
+						if p20:GetTriggerValue("divByY") then
+							v46 = 1 / v46
+						end
+						v48.newScaleY = v46
+						return
+					end
+					if v22 == "FollowTrigger" then
+						p20.extraData.objects = p20.level_ptr:GetObjectsWithGroupId(p20:GetTriggerValue("group_id"))
+						if #p20.extraData.objects == 0 then
+							p20:Stop()
+							return
+						else
+							local v49 = p20.level_ptr:GetObjectWhichIsGroupParent(p20:GetTriggerValue("follow_id"))
+							if v49 then
+								p20.extraData.follow_object = v49
+								p20.extraData.lastX = p20.extraData.follow_object.Position.X
+								p20.extraData.lastY = p20.extraData.follow_object.Position.Y
+							else
+								p20:Stop()
+							end
+						end
+					end
+					if v22 == "MGEditTrigger" then
+						p20.extraData.lastY = 0
+						return
+					end
+					if not v_u_5[v22] then
+						p20:Destroy()
+						return
+					end
+				end
+			end
+			return
+		end
+	end
+end
+function v_u_6.StopActiveTrigEffects(p50)
+	-- upvalues: (copy) v_u_3
+	if v_u_3.idIndexed[p50:GetBlockData().toolbox_id] == "CameraStaticTrigger" then
+		p50.level_ptr.Camera:SetOverwrite()
+	end
+end
+function v_u_6.Deactivate(p51)
+	if p51.was_triggered_once and p51.active then
+		p51.active = false
+		p51.time_elapsed = 0
+		p51:StopActiveTrigEffects()
+	end
+end
+function v_u_6.Resume(p52)
+	if not p52.was_stopped and (p52.was_triggered_once and not p52.active) then
+		p52.active = true
+	end
+end
+function v_u_6.Pause(p53)
+	if not p53.was_stopped and p53.active then
+		p53.active = false
+	end
+end
+function v_u_6.Stop(p54)
+	if not p54.was_stopped and p54.active then
+		p54:StopActiveTrigEffects()
+		p54.active = false
+		p54.was_triggered_once = true
+		p54.was_stopped = true
+		p54.time_elapsed = (1 / 0)
+		table.clear(p54.extraData)
+	end
+end
+function v_u_6.GetMaxDuration(p55, p56)
+	local v57 = p55:GetTriggerValue("duration")
+	if not v57 then
+		if p56 == "PulseTrigger" then
+			v57 = p55:GetTriggerValue("fadein") + p55:GetTriggerValue("fadeout") + p55:GetTriggerValue("hold")
+		elseif p56 == "SpawnTrigger" then
+			v57 = p55:GetTriggerValue("delay")
+		elseif p56 == "ShakeTrigger" then
+			v57 = p55:GetTriggerValue("shake_duration")
+		end
+	end
+	return (v57 or 0) <= 0 and 0.00001 or v57
+end
+function v_u_6.GetAlpha(p58, p59, p60)
+	local v61 = p58.time_elapsed / p59
+	if p60 == "PulseTrigger" then
+		if p58.time_elapsed == p59 then
+			return 0
+		end
+		if p58.time_elapsed < p58:GetTriggerValue("fadein") then
+			return p58.time_elapsed / p58:GetTriggerValue("fadein")
+		end
+		if p58.time_elapsed < p58:GetTriggerValue("hold") + p58:GetTriggerValue("fadein") then
+			return 1
+		end
+		v61 = 1 - (p58.time_elapsed - (p59 - p58:GetTriggerValue("fadeout"))) / p58:GetTriggerValue("fadeout")
+	end
+	return v61
+end
+function v_u_6.GetEasingAlpha(p62, p63, _)
+	-- upvalues: (copy) v_u_4
+	local v64 = p62:GetTriggerValue("easing")
+	local v65 = p62:GetTriggerValue("easing_rate")
+	if v64 then
+		return v_u_4:GetEasingAlphaById(p63, v64, v65)
+	else
+		return p63
+	end
+end
+function v_u_6.IsActive(p66)
+	return p66.active
+end
+function v_u_6.Tick(p67, p68)
+	-- upvalues: (copy) v_u_3, (copy) v_u_5
+	if p67:IsActive() then
+		local v69 = v_u_3.idIndexed[p67:GetBlockData().toolbox_id]
+		local v70 = v_u_5[v69]
+		if v70 then
+			local v71 = p67:GetMaxDuration(v69)
+			local v72 = p67.time_elapsed + p68
+			p67.time_elapsed = math.min(v72, v71)
+			local v73 = p67.time_elapsed / v71
+			local v74 = math.min(v73, 1)
+			local v75 = p67:GetAlpha(v71, v69)
+			local v76 = v70(p67, p68, v75, p67:GetEasingAlpha(v75), v74, v71)
+			if v71 <= p67.time_elapsed and not v76 then
+				p67:Deactivate()
+				if not p67:GetTriggerValue("multi") then
+					p67:Stop()
+				end
+			end
+		end
+	else
+		return
+	end
+end
+function v_u_6.Destroy(p77)
+	p77.level_ptr.Triggers[p77.object] = nil
+	table.clear(p77)
+end
+return v_u_6
+local v1 = game:GetService("ReplicatedStorage")
+local v_u_2 = require(v1.Shared.Utility)
+return {
+	["ColorTrigger"] = function(p3, _, _, p4, p5, _)
+		local v6 = p3.extraData.goalColor
+		local v7 = p3.extraData.startColor:Lerp(v6, p4)
+		local v8 = p3.extraData.startOpacity
+		local v9 = p3.extraData.goalOpacity
+		local v10 = math.lerp(v8, v9, p4)
+		local v11 = p3:GetTriggerValue("id")
+		p3.level_ptr:SetColorChannelData(v11, "color", v7)
+		p3.level_ptr:SetColorChannelData(v11, "opacity", v10)
+		if not p3.extraData.activatedBlending then
+			p3.extraData.activatedBlending = true
+			p3.level_ptr:SetColorChannelData(v11, "blending", p3:GetTriggerValue("blending"))
+		end
+		if p5 >= 1 then
+			p3.level_ptr:SetColorChannelData(v11, "copy_color", p3:GetTriggerValue("copy_color"))
+			p3.level_ptr:SetColorChannelData(v11, "copy_opacity", p3:GetTriggerValue("copy_opacity"))
+			p3.level_ptr:SetColorChannelData(v11, "copy_channel_id", p3:GetTriggerValue("copy_channel_id"))
+			p3.level_ptr:SetColorChannelData(v11, "pcol1", p3:GetTriggerValue("pcol1"))
+			p3.level_ptr:SetColorChannelData(v11, "pcol2", p3:GetTriggerValue("pcol2"))
+			p3.level_ptr:SetColorChannelData(v11, "hue", p3:GetTriggerValue("hue"))
+			p3.level_ptr:SetColorChannelData(v11, "saturation", p3:GetTriggerValue("saturation"))
+			p3.level_ptr:SetColorChannelData(v11, "brightness", p3:GetTriggerValue("brightness"))
+		end
+	end,
+	["PulseTrigger"] = function(p12, _, _, p13, p14, _)
+		local v15 = p12.extraData.goalColor
+		local v16 = p12.extraData.startColor:Lerp(v15, p13)
+		local v17 = p12:GetTriggerValue("id")
+		p12.level_ptr:SetColorChannelData(v17, "color", v16)
+		if p14 >= 1 then
+			p12.level_ptr:SetColorChannelData(v17, "copy_color", p12.extraData.last_copy_color)
+			p12.level_ptr:SetColorChannelData(v17, "pcol1", p12.extraData.last_pcol1)
+			p12.level_ptr:SetColorChannelData(v17, "pcol2", p12.extraData.last_pcol2)
+		end
+	end,
+	["MoveTrigger"] = function(p18, _, _, p19, _, _)
+		local v20
+		if p18:GetTriggerValue("lockX_player") then
+			local v21 = p18.level_ptr.Players[1].position.X
+			v20 = v21 - p18.extraData.lastMoveX
+			p18.extraData.lastMoveX = v21
+		elseif p18:GetTriggerValue("lockX_camera") then
+			local v22 = p18.level_ptr.Camera:GetCameraX()
+			v20 = v22 - p18.extraData.lastMoveX
+			p18.extraData.lastMoveX = v22
+		else
+			local v23 = p18:GetTriggerValue("moveX") * p19
+			v20 = (v23 - p18.extraData.lastMoveX) * 0.1
+			p18.extraData.lastMoveX = v23
+		end
+		local v24
+		if p18:GetTriggerValue("lockY_player") then
+			local v25 = p18.level_ptr.Players[1].position.Y
+			v24 = v25 - p18.extraData.lastMoveY
+			p18.extraData.lastMoveY = v25
+		elseif p18:GetTriggerValue("lockY_camera") then
+			local v26 = p18.level_ptr.Camera:GetCameraY()
+			v24 = v26 - p18.extraData.lastMoveY
+			p18.extraData.lastMoveY = v26
+		else
+			local v27 = p18:GetTriggerValue("moveY") * p19
+			v24 = (v27 - p18.extraData.lastMoveY) * 0.1
+			p18.extraData.lastMoveY = v27
+		end
+		local v28 = Vector3.new(v20, v24, 0)
+		local v29 = {}
+		for _, v30 in p18.extraData.objects do
+			local v31 = p18.level_ptr.GameObjects[v30]
+			v31.position = v31.position + v28
+			local v32 = v30.CFrame + v28
+			table.insert(v29, v32)
+		end
+		workspace:BulkMoveTo(p18.extraData.objects, v29, Enum.BulkMoveMode.FireCFrameChanged)
+	end,
+	["RotateTrigger"] = function(p33, _, _, p34, _, _)
+		local v35 = (p33:GetTriggerValue("degrees") + p33:GetTriggerValue("x360") * 360) * p34
+		local v36 = v35 - p33.extraData.lastRotation
+		local v37
+		if p33.extraData.center then
+			v37 = p33.extraData.center.Position
+		else
+			v37 = nil
+		end
+		local v38 = -v36
+		local v39 = math.rad(v38)
+		local v40 = math.cos(v39)
+		local v41 = -v39
+		local v42 = math.sin(v41)
+		local v43 = {}
+		for _, v44 in p33.extraData.objects do
+			local v45 = p33.level_ptr.GameObjects[v44]
+			v45.rotation = (v45.rotation - v36) % 360
+			local v46 = v44.CFrame
+			if v37 then
+				local v47 = v44.Position - v37
+				local v48 = v47.X * v40 + v47.Y * v42
+				local v49 = v47.Y * v40 - v47.X * v42
+				local v50 = Vector3.new(v48, v49)
+				v45.position = v37 + v50
+				local _, _, v51 = v46:ToOrientation()
+				v46 = CFrame.fromOrientation(0, 0, v51) + v37 + v50
+			end
+			local v52 = v46 * CFrame.Angles(0, 0, v39)
+			table.insert(v43, v52)
+		end
+		p33.extraData.lastRotation = v35
+		workspace:BulkMoveTo(p33.extraData.objects, v43, Enum.BulkMoveMode.FireCFrameChanged)
+	end,
+	["SpawnTrigger"] = function(p53, _, _, _, p54, _)
+		if p54 >= 1 then
+			for _, v55 in p53.extraData.objects do
+				p53.level_ptr:SpawnObject(v55)
+			end
+		end
+	end,
+	["ToggleTrigger"] = function(p56, _, _, _, p57, _)
+		if p57 >= 1 then
+			for _, v58 in p56.extraData.objects do
+				if p56:GetTriggerValue("activate_group") then
+					p56.level_ptr:ActivateObject(v58)
+				else
+					p56.level_ptr:DeactivateObject(v58)
+				end
+			end
+		end
+	end,
+	["AlphaTrigger"] = function(p59, _, _, p60, _, _)
+		local v61 = p59:GetTriggerValue("opacity")
+		for _, v62 in p59.extraData.objects do
+			local v63 = p59.level_ptr.GameObjects[v62]
+			local v64 = p59.extraData.startOpacities[v62]
+			local v65 = v64 + (v61 - v64) * p60
+			v63.opacity = math.clamp(v65, 0, 1)
+		end
+	end,
+	["BGEffectDisableTrigger"] = function(p66, _, _, _, p67, _)
+		if p67 >= 1 then
+			p66.level_ptr.bgEffectEnabled = false
+		end
+	end,
+	["BGEffectEnableTrigger"] = function(p68, _, _, _, p69, _)
+		if p69 >= 1 then
+			p68.level_ptr.bgEffectEnabled = true
+		end
+	end,
+	["PlayerGhostTrailDisableTrigger"] = function(p70, _, _, _, p71, _)
+		if p71 >= 1 then
+			for v72 = 1, #p70.level_ptr.Players do
+				p70.level_ptr.Players[v72].ghostTrailEnabled = false
+			end
+		end
+	end,
+	["PlayerGhostTrailEnableTrigger"] = function(p73, _, _, _, p74, _)
+		if p74 >= 1 then
+			for v75 = 1, #p73.level_ptr.Players do
+				p73.level_ptr.Players[v75].ghostTrailEnabled = true
+			end
+		end
+	end,
+	["PlayerHideTrigger"] = function(p76, _, _, _, p77, _)
+		if p77 >= 1 then
+			for v78 = 1, #p76.level_ptr.Players do
+				local v79 = p76.level_ptr.Players[v78]
+				v79.hidden = true
+				v79.object_ptr.SurfaceGui.Enabled = false
+			end
+		end
+	end,
+	["PlayerShowTrigger"] = function(p80, _, _, _, p81, _)
+		if p81 >= 1 then
+			for v82 = 1, #p80.level_ptr.Players do
+				local v83 = p80.level_ptr.Players[v82]
+				v83.hidden = false
+				v83.object_ptr.SurfaceGui.Enabled = true
+			end
+		end
+	end,
+	["ShakeTrigger"] = function(p84, _, p85, _, _, _)
+		if not p84.extraData.activated then
+			p84.extraData.activated = true
+			local v86 = p84:GetTriggerValue("shake_duration")
+			p84.level_ptr.Camera:Shake(p84:GetTriggerValue("shake_strength"), math.max(0.001, p84:GetTriggerValue("shake_interval")), v86 - p85 * v86)
+		end
+	end,
+	["CameraZoomTrigger"] = function(p87, _, _, p88, _, _)
+		local v89 = p87.extraData.startZoom + (p87:GetTriggerValue("zoom") - p87.extraData.startZoom) * p88
+		p87.level_ptr.Camera.zoom = v89
+		if p87.level_ptr.lastBorderParams then
+			local v90 = p87.level_ptr
+			local v91 = p87.level_ptr.lastBorderParams
+			v90:SetBorders(unpack(v91))
+		else
+			p87.level_ptr:SetBorders(0, false, false)
+		end
+	end,
+	["CameraOffsetTrigger"] = function(p92, _, _, p93, _, _)
+		local v94 = p92:GetTriggerValue("onlyAxis")
+		if v94 == 0 or v94 == 1 then
+			local v95 = p92.extraData.startOffsetX + (p92:GetTriggerValue("offsetX") - p92.extraData.startOffsetX) * p93
+			p92.level_ptr.Camera.offsetX = v95
+		end
+		if v94 == 0 or v94 == 2 then
+			local v96 = p92.extraData.startOffsetY + (p92:GetTriggerValue("offsetY") - p92.extraData.startOffsetY) * p93
+			p92.level_ptr.Camera.offsetY = v96
+		end
+	end,
+	["CameraRotateTrigger"] = function(p97, _, _, p98, _, _)
+		local v99 = p97.extraData.startRotation + (p97.extraData.newRotation - p97.extraData.startRotation) * p98
+		p97.level_ptr.Camera.rotation = v99
+	end,
+	["CameraEdgeTrigger"] = function(p100, _, _, _, _, _)
+		local v101 = p100:GetTriggerValue("direction")
+		if v101 <= 0 then
+			return
+		else
+			local v102 = p100:GetTriggerValue("group_id")
+			local v103
+			if p100.extraData.center then
+				v103 = p100.extraData.center.Position
+			else
+				v103 = nil
+			end
+			if v103 or v102 <= 0 then
+				local v104
+				if v101 > 0 and v101 < 3 then
+					v104 = Enum.Axis.X
+				else
+					v104 = Enum.Axis.Y
+				end
+				local v105
+				if v102 == 0 then
+					v105 = nil
+				elseif v104 == Enum.Axis.X then
+					v105 = v103.X
+				else
+					v105 = v103.Y
+				end
+				local v106 = v101 == 1 and true or v101 == 4
+				if v105 ~= nil then
+					local v107 = p100.level_ptr.Camera
+					local v108 = true
+					local v109
+					if v106 then
+						v109 = v105
+					else
+						v109 = nil
+					end
+					if v106 then
+						v105 = nil
+					end
+					v107:SetCameraBounds(v104, v108, v109, v105)
+					return true
+				end
+				p100.level_ptr.Camera:ClearCameraBounds(v104, v106, not v106)
+			end
+		end
+	end,
+	["CameraStaticTrigger"] = function(p110, p111, p112, p113, _, _)
+		-- upvalues: (copy) v_u_2
+		if p110:GetTriggerValue("exitStatic") then
+			local v114 = p110.extraData
+			local v115 = p110.level_ptr.Camera.cameraX
+			local v116 = p110.level_ptr.Camera.cameraY
+			v114.goalPosition = Vector3.new(v115, v116)
+		elseif p110:GetTriggerValue("follow") then
+			p110.extraData.goalPosition = p110.extraData.goalPosition + (p110.extraData.center.Position - p110.extraData.goalPosition) * p110.level_ptr.Camera:GetEasingAlpha(p111, p110:GetTriggerValue("followEasing"))
+		end
+		if p112 < 1 then
+			local v117
+			if p110:GetTriggerValue("smoothVelocity") then
+				v117 = v_u_2:GetQuadraticBezierPoint(p110.extraData.startPosition, p110.extraData.startPosition + p110.extraData.velocity + p110.extraData.velocity * p110:GetTriggerValue("modifier"), p110.extraData.goalPosition, p113)
+			else
+				v117 = p110.extraData.startPosition + (p110.extraData.goalPosition - p110.extraData.startPosition) * p113
+			end
+			p110.extraData.currentPosition = v117
+		else
+			p110.extraData.currentPosition = p110.extraData.goalPosition
+		end
+		local v118 = p110:GetTriggerValue("onlyAxis")
+		if v118 == 0 or v118 == 1 then
+			p110.level_ptr.Camera:SetOverwrite(Enum.Axis.X, p110.extraData.currentPosition.X)
+		end
+		if v118 == 0 or v118 == 2 then
+			p110.level_ptr.Camera:SetOverwrite(Enum.Axis.Y, p110.extraData.currentPosition.Y)
+		end
+		if not p110:GetTriggerValue("exitStatic") then
+			return true
+		end
+	end,
+	["ScaleTrigger"] = function(p119, _, _, p120, _, _)
+		local v121 = p119.extraData.initialScaleX + (p119.extraData.newScaleX - p119.extraData.initialScaleX) * p120
+		local v122 = p119.extraData.initialScaleY + (p119.extraData.newScaleY - p119.extraData.initialScaleY) * p120
+		local v123
+		if p119.extraData.center then
+			v123 = p119.extraData.center.Position
+		else
+			v123 = nil
+		end
+		local v124 = p119:GetTriggerValue("onlyMove")
+		local v125 = p119.extraData.lastAppliedScaleX or 1
+		local v126 = p119.extraData.lastAppliedScaleY or 1
+		local v127 = v121 / v125
+		local v128 = v122 / v126
+		local v129 = math.sign(v125) ~= math.sign(v121)
+		local v130 = math.sign(v126) ~= math.sign(v122)
+		local v131 = {}
+		for _, v132 in p119.extraData.objects do
+			local v133 = p119.level_ptr.GameObjects[v132]
+			if v123 then
+				local v134 = v132.Position - v123
+				local v135 = v134.X * v127
+				local v136 = v134.Y * v128
+				local v137 = v123 + Vector3.new(v135, v136, 0) - v132.Position
+				v133.position = v133.position + v137
+				local v138 = v132.CFrame + v137
+				table.insert(v131, v138)
+			end
+			if not v124 then
+				local v139 = math.abs(v127)
+				local v140 = math.abs(v128)
+				local v141
+				if v129 then
+					v133.flipX = v133.flipX * -1
+					v141 = true
+				else
+					v141 = false
+				end
+				if v130 then
+					v133.flipY = v133.flipY * -1
+					v141 = true
+				end
+				v133.scaleX = v133.scaleX * v139
+				v133.scaleY = v133.scaleY * v140
+				if v141 then
+					p119.level_ptr:FlipObject(v132, v133.flipX, v133.flipY)
+				end
+				local v142 = v133:GetSize()
+				local v143, v144 = v133:GetHitboxTransform()
+				v132.Size = v142
+				v132.Hitbox.Size = v144
+				v132.Hitbox.Position = v143
+			end
+		end
+		if v123 then
+			workspace:BulkMoveTo(p119.extraData.objects, v131, Enum.BulkMoveMode.FireCFrameChanged)
+		end
+		p119.extraData.lastAppliedScaleX = v121
+		p119.extraData.lastAppliedScaleY = v122
+	end,
+	["BGSwitchTrigger"] = function(p145, _, _, _, p146, _)
+		if p146 >= 1 then
+			p145.level_ptr.levelSettings.bgId = p145:GetTriggerValue("bgId")
+			p145.level_ptr:UpdateBackground()
+		end
+	end,
+	["GSwitchTrigger"] = function(p147, _, _, _, p148, _)
+		if p148 >= 1 then
+			p147.level_ptr.levelSettings.gId = p147:GetTriggerValue("gId")
+			p147.level_ptr.levelSettings.lId = p147:GetTriggerValue("lId")
+			p147.level_ptr:UpdateGround()
+			p147.level_ptr:UpdateLine()
+		end
+	end,
+	["StopTrigger"] = function(p149, _, _, _, p150, _)
+		if p150 >= 1 then
+			local v151 = p149:GetTriggerValue("action")
+			for _, v152 in p149.extraData.objects do
+				local v153 = p149.level_ptr.Triggers[v152]
+				if v153 then
+					if v151 == 1 then
+						v153:Stop()
+					elseif v151 == 2 then
+						v153:Pause()
+					else
+						v153:Resume()
+					end
+				end
+			end
+		end
+	end,
+	["FollowTrigger"] = function(p154, _, _, _, _, _)
+		local v155 = p154.extraData.follow_object.Position.X
+		local v156 = p154.extraData.follow_object.Position.Y
+		local v157 = v155 - p154.extraData.lastX
+		local v158 = v156 - p154.extraData.lastY
+		local v159 = v157 * p154:GetTriggerValue("xMod")
+		local v160 = v158 * p154:GetTriggerValue("yMod")
+		local v161 = Vector3.new(v159, v160, 0)
+		local v162 = {}
+		for _, v163 in p154.extraData.objects do
+			local v164 = p154.level_ptr.GameObjects[v163]
+			v164.position = v164.position + v161
+			local v165 = v163.CFrame + v161
+			table.insert(v162, v165)
+		end
+		workspace:BulkMoveTo(p154.extraData.objects, v162, Enum.BulkMoveMode.FireCFrameChanged)
+		p154.extraData.lastX = v155
+		p154.extraData.lastY = v156
+	end,
+	["OnDeathTrigger"] = function(p166, _, _, _, p167, _)
+		if not p166.level_ptr.dead or p167 < 1 then
+			return true
+		end
+		p166:GetTriggerValue("group_id")
+		local v168 = p166:GetTriggerValue("activate_group")
+		for _, v169 in p166.extraData.objects do
+			if v168 then
+				p166.level_ptr:ActivateObject(v169)
+				p166.level_ptr:SpawnObject(v169)
+			else
+				p166.level_ptr:DeactivateObject(v169)
+			end
+		end
+	end,
+	["BGSpeedTrigger"] = function(p170, _, _, _, p171, _)
+		if p171 >= 1 then
+			local v172, v173 = p170.level_ptr:GetBGPosition(p170.level_ptr.Camera, p170.level_ptr.bgModX, p170.level_ptr.bgModY)
+			local v174, v175 = p170.level_ptr:GetBGPosition(p170.level_ptr.Camera, p170:GetTriggerValue("modX"), p170:GetTriggerValue("modY"))
+			p170.level_ptr.bgModX = p170:GetTriggerValue("modX")
+			p170.level_ptr.bgModY = p170:GetTriggerValue("modY")
+			p170.level_ptr.bgPosModX = v172 + p170.level_ptr.bgPosModX - v174
+			p170.level_ptr.bgPosModY = v173 + p170.level_ptr.bgPosModY - v175
+		end
+	end,
+	["GravityTrigger"] = function(p176, _, _, _, p177, _)
+		if p177 < 1 then
+			return
+		else
+			local v178 = p176:GetTriggerValue("applyType")
+			if v178 == 0 then
+				for _, v179 in p176.level_ptr.Players do
+					v179.gravityScalar = p176:GetTriggerValue("gravity")
+				end
+			elseif v178 == 3 then
+				local v180 = p176:GetPlayerTouched()
+				if v180 then
+					v180.gravityScalar = p176:GetTriggerValue("gravity")
+					return
+				end
+			else
+				local v181 = p176.level_ptr.Players[v178]
+				if v181 then
+					v181.gravityScalar = p176:GetTriggerValue("gravity")
+				end
+			end
+		end
+	end,
+	["MGSpeedTrigger"] = function(p182, _, _, _, p183, _)
+		if p183 >= 1 then
+			local v184, _ = p182.level_ptr:GetMGPosition(p182.level_ptr.Camera, p182.level_ptr.mgModX, p182.level_ptr.mgModY)
+			local v185, _ = p182.level_ptr:GetMGPosition(p182.level_ptr.Camera, p182:GetTriggerValue("modX"), p182:GetTriggerValue("modY"))
+			p182.level_ptr.mgModX = p182:GetTriggerValue("modX")
+			p182.level_ptr.mgModY = p182:GetTriggerValue("modY")
+			p182.level_ptr.mgPosModX = v184 + p182.level_ptr.mgPosModX - v185
+		end
+	end,
+	["MGSwitchTrigger"] = function(p186, _, _, _, p187, _)
+		if p187 >= 1 then
+			p186.level_ptr.levelSettings.mgId = p186:GetTriggerValue("mgId")
+			p186.level_ptr:UpdateMiddleGround()
+		end
+	end,
+	["MGEditTrigger"] = function(p188, _, _, p189, _, _)
+		local v190 = p188:GetTriggerValue("offsetY") * p189 * 0.1
+		local v191 = p188.level_ptr
+		v191.mgPosModY = v191.mgPosModY + (v190 - p188.extraData.lastY)
+		p188.extraData.lastY = v190
+	end
+}
+local v1 = {
+	["ColorTrigger"] = {
+		["color"] = Color3.new(1, 1, 1),
+		["opacity"] = 1,
+		["copy_color"] = false,
+		["blending"] = false,
+		["pcol1"] = false,
+		["pcol2"] = false,
+		["hue"] = 0,
+		["saturation"] = 1,
+		["brightness"] = 1,
+		["copy_channel_id"] = 0,
+		["copy_opacity"] = false,
+		["duration"] = 0.5,
+		["id"] = -3
+	},
+	["PulseTrigger"] = {
+		["color"] = Color3.new(1, 1, 1),
+		["copy_color"] = false,
+		["pcol1"] = false,
+		["pcol2"] = false,
+		["hue"] = 0,
+		["saturation"] = 1,
+		["brightness"] = 1,
+		["copy_channel_id"] = 0,
+		["fadein"] = 0.5,
+		["hold"] = 0.5,
+		["fadeout"] = 0.5,
+		["id"] = -3
+	},
+	["MoveTrigger"] = {
+		["moveX"] = 0,
+		["moveY"] = 0,
+		["lockX_player"] = false,
+		["lockY_player"] = false,
+		["lockX_camera"] = false,
+		["lockY_camera"] = false,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["group_id"] = 0
+	},
+	["RotateTrigger"] = {
+		["degrees"] = 0,
+		["x360"] = 0,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["group_id"] = 0,
+		["center_id"] = 0
+	},
+	["SpawnTrigger"] = {
+		["group_id"] = 0,
+		["delay"] = 0
+	},
+	["ToggleTrigger"] = {
+		["group_id"] = 0,
+		["activate_group"] = false
+	},
+	["OnDeathTrigger"] = {
+		["group_id"] = 0,
+		["activate_group"] = false
+	},
+	["AlphaTrigger"] = {
+		["group_id"] = 0,
+		["duration"] = 0.5,
+		["opacity"] = 1
+	},
+	["StartPos"] = {
+		["gameplay_speed"] = 2,
+		["gamemode"] = 1,
+		["is_mini"] = false,
+		["is_dual"] = false,
+		["flip_gravity"] = false,
+		["disable"] = false,
+		["__has_basic_options"] = false
+	},
+	["ShakeTrigger"] = {
+		["shake_strength"] = 0,
+		["shake_interval"] = 0,
+		["shake_duration"] = 0.5
+	},
+	["ScaleTrigger"] = {
+		["scaleX"] = 1,
+		["scaleY"] = 1,
+		["divByX"] = false,
+		["divByY"] = false,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["duration"] = 0.5,
+		["center_id"] = 0,
+		["group_id"] = 0,
+		["onlyMove"] = false
+	},
+	["CameraOffsetTrigger"] = {
+		["offsetX"] = 0,
+		["offsetY"] = 0,
+		["onlyAxis"] = 0,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["duration"] = 0.5
+	},
+	["CameraRotateTrigger"] = {
+		["degrees"] = 0,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["add"] = false,
+		["snap360"] = false
+	},
+	["CameraZoomTrigger"] = {
+		["zoom"] = 1,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2
+	},
+	["CameraStaticTrigger"] = {
+		["exitStatic"] = false,
+		["exitInstant"] = false,
+		["onlyAxis"] = 0,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2,
+		["follow"] = false,
+		["followEasing"] = 1,
+		["smoothVelocity"] = false,
+		["modifier"] = 0,
+		["group_id"] = 0
+	},
+	["CameraEdgeTrigger"] = {
+		["direction"] = 0,
+		["group_id"] = 0
+	},
+	["GravityTrigger"] = {
+		["gravity"] = 1,
+		["applyType"] = 0
+	},
+	["BGSwitchTrigger"] = {
+		["bgId"] = 1
+	},
+	["BGSpeedTrigger"] = {
+		["modX"] = 1,
+		["modY"] = 1
+	},
+	["GSwitchTrigger"] = {
+		["gId"] = 1,
+		["lId"] = 1
+	},
+	["FollowTrigger"] = {
+		["xMod"] = 1,
+		["yMod"] = 1,
+		["duration"] = 0.5,
+		["group_id"] = 0,
+		["follow_id"] = 0
+	},
+	["StopTrigger"] = {
+		["group_id"] = 0,
+		["action"] = 1
+	},
+	["AreaMoveTrigger"] = {},
+	["AreaRotateTrigger"] = {},
+	["AreaScaleTrigger"] = {},
+	["AreaFadeTrigger"] = {},
+	["AreaTintTrigger"] = {},
+	["AreaStopTrigger"] = {},
+	["EditAreaMoveTrigger"] = {},
+	["EdiAreaRotateTrigger"] = {},
+	["EdiAreaScaleTrigger"] = {},
+	["EdiAreaFadeTrigger"] = {},
+	["EdiAreaTintTrigger"] = {},
+	["MGEditTrigger"] = {
+		["offsetY"] = 0,
+		["duration"] = 0.5,
+		["easing"] = 1,
+		["easing_rate"] = 2
+	},
+	["MGSwitchTrigger"] = {
+		["mgId"] = 0
+	},
+	["MGSpeedTrigger"] = {
+		["modX"] = 1,
+		["modY"] = 1
+	},
+	["PortalGamemode*"] = {
+		["freeMode"] = false,
+		["gridSnapDisabled"] = false,
+		["__has_basic_options"] = false
+	},
+	["PortalDual*"] = {
+		["freeMode"] = false,
+		["gridSnapDisabled"] = false,
+		["__has_basic_options"] = false
+	},
+	["ForceBlock*"] = {
+		["force"] = 0,
+		["maxforce"] = 0,
+		["relative"] = false,
+		["range"] = false,
+		["__has_basic_options"] = false
+	},
+	["BGEffectDisableTrigger"] = {},
+	["BGEffectEnableTrigger"] = {},
+	["PlayerGhostTrailDisableTrigger"] = {},
+	["PlayerGhostTrailEnableTrigger"] = {},
+	["PlayerHideTrigger"] = {},
+	["PlayerShowTrigger"] = {}
+}
+return v1
 
+local v1 = game:GetService("ReplicatedStorage")
+local v2 = v1.Shared
+local v_u_3 = require(v2.Toolbox)
+local v_u_4 = require(v2.Utility)
+local v_u_5 = require(script.TriggerData)
+local v_u_6 = require(script.DefaultSpecialData)
+local v_u_7 = {}
+v_u_7.__index = v_u_7
+local v8 = {}
+local v_u_9 = {}
+for _, v10 in v1.GameObjects:GetChildren() do
+	for _, v11 in v10:GetChildren() do
+		v8[v11.Name] = v11
+		v_u_9[v_u_3.nameIndexed[v11.Name]] = v11
+	end
+end
+function table_equals(p12, p13, p14)
+	if p12 == p13 then
+		return true
+	end
+	if typeof(p12) ~= "table" or typeof(p13) ~= "table" then
+		return false
+	end
+	if not p14 then
+		local v15 = getmetatable(p12)
+		if v15 and v15.__eq then
+			return p12 == p13
+		end
+	end
+	for v16, v17 in p12 do
+		local v18 = p13[v16]
+		if typeof(v17) == "table" and typeof(v18) == "table" then
+			if not table_equals(v17, v18, p14) then
+				return false
+			end
+		elseif v18 ~= v17 then
+			return false
+		end
+	end
+	for v19 in p13 do
+		if p12[v19] == nil then
+			return false
+		end
+	end
+	return true
+end
+function getSpecialData(p20)
+	-- upvalues: (copy) v_u_4, (copy) v_u_6
+	return v_u_4:GetItemWithWildcardSupport(v_u_6, p20)
+end
+function getTriggerData(p21)
+	-- upvalues: (copy) v_u_4, (copy) v_u_5
+	return v_u_4:GetItemWithWildcardSupport(v_u_5, p21)
+end
+function v_u_7.new(p22)
+	-- upvalues: (copy) v_u_7
+	local v23 = v_u_7:GetPhysicalBlockFromToolboxId(p22)
+	if not v23 then
+		return nil
+	end
+	local v24 = v_u_7
+	local v25 = setmetatable({}, v24)
+	v25.toolbox_id = p22
+	v25.position = Vector3.new(0, 0, 0)
+	v25.rotation = 0
+	v25.opacity = 1
+	v25.scaleX = 1
+	v25.scaleY = 1
+	v25.flipX = 1
+	v25.flipY = 1
+	v25.linkGroup = 0
+	v25.pairGroup = 0
+	v25.triggerData = {}
+	v25.group_ids = {}
+	v25.__temp_tags = {}
+	v25.__tags = {}
+	v25.__values = {}
+	v25.__specialData = {}
+	v25.__extraData = {}
+	v25.basecolor_id = v23:GetAttribute("BaseColorId") or 1000
+	v25.detailcolor_id = v23:GetAttribute("DetailColorId") or 1
+	v25.editor_layer = 0
+	v25.editor_layer2 = 0
+	v25.zorder = 0
+	v25._appliedBaseColor = nil
+	v25._appliedDetailColor = nil
+	v25._appliedBaseTransparency = nil
+	v25._appliedDetailTransparency = nil
+	v25._appliedRotation = nil
+	v25._appliedScale = nil
+	for _, v26 in v23:GetTags() do
+		v25:AddTag(v26)
+	end
+	for v27, v28 in v23:GetAttributes() do
+		v25:SetValue(v27, v28)
+	end
+	v25:ReplaceTriggerDataWithDefault()
+	v25:ReplaceValuesWithDefault()
+	return v25
+end
+function v_u_7.GetCFrame(p29)
+	local v30 = CFrame.Angles
+	local v31 = p29.rotation
+	return v30(0, 0, (math.rad(v31))) + p29.position
+end
+function v_u_7.HasHitboxFunctionality(p32)
+	return p32:HasTag("Collidable") or (p32:HasTag("Hazard") or p32:HasTag("ForceBlock") or (p32:HasTag("Collectible") or p32:HasTag("Trigger")) or (p32:HasTag("SquareTrigger") or p32:HasTag("Orb") or (p32:HasTag("Pad") or p32:HasTag("Portal"))))
+end
+function v_u_7.HasGroup(p33, p34)
+	return p33.group_ids[p34] ~= nil
+end
+function v_u_7.IsGroupParent(p35, p36)
+	return p35.group_ids[p36] == true
+end
+function v_u_7.AddGroup(p37, p38)
+	if p37.group_ids[p38] == nil then
+		p37.group_ids[p38] = false
+	end
+end
+function v_u_7.RemoveGroup(p39, p40)
+	p39.group_ids[p40] = nil
+end
+function v_u_7.SetGroupParent(p41, p42)
+	p41.group_ids[p42] = true
+end
+function v_u_7.UnsetGroupParent(p43, p44)
+	p43.group_ids[p44] = false
+end
+function v_u_7.GetGroupCount(p45)
+	local v46 = 0
+	for _ in p45.group_ids do
+		v46 = v46 + 1
+	end
+	return v46
+end
+function v_u_7.SetLinkGroup(p47, p48)
+	if p48 and typeof(p48) == "number" then
+		p47.linkGroup = p48
+	else
+		p47.linkGroup = 0
+	end
+end
+function v_u_7.SetPairGroup(p49, p50)
+	if p50 and typeof(p50) == "number" then
+		p49.pairGroup = p50
+	else
+		p49.pairGroup = 0
+	end
+end
+function v_u_7.GetValue(p51, p52)
+	return p51.__values[p52]
+end
+function v_u_7.SetValue(p53, p54, p55)
+	p53.__values[p54] = p55
+end
+function v_u_7.HasSpecial()
+	-- failed to decompile
+end
+function v_u_7.GetSpecialValue(p56, p57)
+	return p56.__specialData[p57]
+end
+function v_u_7.SetSpecialValue(p58, p59, p60)
+	if p58.__specialData[p59] ~= nil then
+		p58.__specialData[p59] = p60
+	end
+end
+function v_u_7.IsExtraSet(p61, p62)
+	return p61.__extraData[p62] == true
+end
+function v_u_7.UnsetExtra(p63, p64)
+	p63.__extraData[p64] = false
+end
+function v_u_7.SetExtra(p65, p66)
+	p65.__extraData[p66] = true
+end
+function v_u_7.HasTag(p67, p68)
+	return p67.__tags[p68] == true and true or p67.__temp_tags[p68] == true
+end
+function v_u_7.AddTag(p69, p70)
+	p69.__tags[p70] = true
+end
+function v_u_7.SetTag(p71, p72, p73)
+	p71.__tags[p72] = p73 == true
+end
+function v_u_7.RemoveTag(p74, p75)
+	p74.__tags[p75] = false
+end
+function v_u_7.AddTempTag(p76, p77)
+	p76.__temp_tags[p77] = true
+end
+function v_u_7.RemoveTempTag(p78, p79)
+	p78.__temp_tags[p79] = false
+end
+function v_u_7.SetTempTag(p80, p81, p82)
+	p80.__temp_tags[p81] = p82 == true
+end
+function v_u_7.ClearTempTags(p83)
+	table.clear(p83.__temp_tags)
+end
+function v_u_7.GetTriggerValue(p84, p85)
+	return p84.triggerData[p85]
+end
+function v_u_7.SetTriggerValue(p86, p87, p88)
+	if p86.triggerData[p87] ~= nil then
+		p86.triggerData[p87] = p88
+	end
+end
+function v_u_7.GetPhysicalBlockFromToolboxId(_, p89)
+	-- upvalues: (copy) v_u_9
+	return v_u_9[p89]
+end
+function v_u_7.GetSize(p90)
+	-- upvalues: (copy) v_u_9
+	local v91 = v_u_9[p90.toolbox_id].Size
+	local v92 = p90.scaleX
+	local v93 = p90.scaleY
+	return v91 * Vector3.new(v92, v93, 1)
+end
+function v_u_7.GetHitboxTransform(p94)
+	-- upvalues: (copy) v_u_9, (copy) v_u_4
+	local v95 = v_u_9[p94.toolbox_id]
+	local v96 = v95.Hitbox.Position - v95.Position
+	local v97 = p94.position
+	local v98 = v_u_4
+	local v99 = p94.scaleX
+	local v100 = p94.scaleY
+	local v101 = v96 * Vector3.new(v99, v100, 1)
+	local v102 = p94.flipX
+	local v103 = p94.flipY
+	local v104 = v101 * Vector3.new(v102, v103, 0)
+	local v105 = p94.rotation
+	local v106 = v97 + v98:RotatePoint(v104, (math.rad(v105)))
+	local v107 = v95.Hitbox.Size
+	local v108 = p94.scaleX
+	local v109 = p94.scaleY
+	return v106, v107 * Vector3.new(v108, v109, 1)
+end
+function v_u_7.IsEqualTo(p110, p111)
+	if typeof(p111) == "table" then
+		if getmetatable(p110) == getmetatable(p111) then
+			return table_equals(p110, p111)
+		else
+			return false
+		end
+	else
+		return false
+	end
+end
+function v_u_7.ReplaceValuesWithDefault(p112)
+	-- upvalues: (copy) v_u_3, (copy) v_u_4
+	local v113 = v_u_3.idIndexed[p112.toolbox_id]
+	local v114 = getSpecialData(v113)
+	if v114 then
+		p112.__specialData = v_u_4:CloneTable(v114)
+	end
+end
+function v_u_7.ReplaceTriggerDataWithDefault(p115)
+	-- upvalues: (copy) v_u_3, (copy) v_u_4
+	local v116 = v_u_3.idIndexed[p115.toolbox_id]
+	local v117 = getTriggerData(v116)
+	if v117 then
+		local v118 = v_u_4:CloneTable(v117)
+		if v118.__has_basic_options ~= false then
+			v118.touch = false
+			v118.spawn = false
+			v118.multi = false
+		end
+		v118.__has_basic_options = nil
+		p115.triggerData = v118
+	end
+end
+function v_u_7.RefreshTriggerData(p119)
+	-- upvalues: (copy) v_u_3, (copy) v_u_4
+	local v120 = v_u_3.idIndexed[p119.toolbox_id]
+	local v121 = getTriggerData(v120)
+	if v121 then
+		local v122 = v_u_4:CloneTable(v121)
+		if v122.__has_basic_options ~= false then
+			v122.touch = false
+			v122.spawn = false
+			v122.multi = false
+		end
+		v122.__has_basic_options = nil
+		for v123, v124 in v122 do
+			if p119.triggerData[v123] == nil then
+				p119.triggerData[v123] = v124
+			end
+		end
+	end
+end
+function v_u_7.Destroy(p125)
+	table.clear(p125)
+end
+return v_u_7
+local v1 = {
+	["OrbCustom"] = {
+		["group_id"] = 0,
+		["activate_group"] = false,
+		["claim_touch"] = false,
+		["spawn_only"] = false,
+		["multi"] = false
+	},
+	["OrbTeleport"] = {
+		["group_id"] = 0,
+		["save_offset"] = false,
+		["multi"] = false
+	},
+	["ParticleTrigger"] = {
+		["lifetime"] = 1,
+		["lifetime_variance"] = 0.3,
+		["emission"] = 30,
+		["angle"] = -90,
+		["angle_variance"] = 90,
+		["speed"] = 30,
+		["speed_variance"] = 0,
+		["position_variance_x"] = 30,
+		["position_variance_y"] = 0,
+		["gravity_x"] = 0,
+		["gravity_y"] = 0,
+		["start_size"] = 2,
+		["start_size_variance"] = 1,
+		["end_size"] = 1,
+		["end_size_variance"] = 1,
+		["start_rotation"] = 0,
+		["start_rotation_variance"] = 0,
+		["rotation_velocity"] = 0,
+		["rotation_velocity_variance"] = 0,
+		["start_r"] = 1,
+		["start_g"] = 1,
+		["start_b"] = 1,
+		["start_a"] = 1,
+		["end_r"] = 1,
+		["end_g"] = 1,
+		["end_b"] = 1,
+		["end_a"] = 1,
+		["emission_shape"] = 1,
+		["emission_direction"] = 1,
+		["emission_start"] = 1,
+		["velocity_drag"] = 0,
+		["use_color_channels"] = false,
+		["use_grouped"] = true,
+		["use_blending"] = true,
+		["texture"] = 1
+	},
+	["Orb*"] = {
+		["multi"] = false
+	},
+	["OrbBlack"] = {
+		["rotation_speed"] = 360,
+		["multi"] = false
+	},
+	["OrbGravityGreen"] = {
+		["rotation_speed"] = 360,
+		["multi"] = false
+	},
+	["Pad*"] = {
+		["multi"] = false
+	},
+	["Portal*"] = {
+		["multi"] = false
+	},
+	["FlashRing03"] = {
+		["rotation_speed"] = 360
+	},
+	["CartWheel03"] = {
+		["rotation_speed"] = 360
+	},
+	["GeometricShape01"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularSaw01"] = {
+		["rotation_speed"] = 360
+	},
+	["RingSegment03"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["LightBlade03"] = {
+		["rotation_speed"] = 360
+	},
+	["RoundCloud02"] = {
+		["rotation_speed"] = 360
+	},
+	["PointyBlade03"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingLine03"] = {
+		["rotation_speed"] = 360
+	},
+	["Cogwheel04"] = {
+		["rotation_speed"] = 360
+	},
+	["FlashRing02"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularSaw03"] = {
+		["rotation_speed"] = 360
+	},
+	["CartWheel02"] = {
+		["rotation_speed"] = 360
+	},
+	["FlashRing01"] = {
+		["rotation_speed"] = 360
+	},
+	["Cogwheel01"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularBlade03"] = {
+		["rotation_speed"] = 360
+	},
+	["PickupCircle01"] = {
+		["rotation_speed"] = 360
+	},
+	["GeometricShape02"] = {
+		["rotation_speed"] = 360
+	},
+	["SpiralShape02"] = {
+		["rotation_speed"] = 360
+	},
+	["Wheel02"] = {
+		["rotation_speed"] = 360
+	},
+	["RoundCloud01"] = {
+		["rotation_speed"] = 360
+	},
+	["GeometricShape03"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["ScaleFadeRing03"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingBall03"] = {
+		["rotation_speed"] = 360
+	},
+	["SpikeWheel01"] = {
+		["rotation_speed"] = 360
+	},
+	["PointyBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackCogwheel01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingLine01"] = {
+		["rotation_speed"] = 360
+	},
+	["CartWheel01"] = {
+		["rotation_speed"] = 360
+	},
+	["SpiralShape03"] = {
+		["rotation_speed"] = 360
+	},
+	["SpinBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["PickupCircle03"] = {
+		["rotation_speed"] = 360
+	},
+	["InvisibleBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingBall01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingSquare01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingSquare04"] = {
+		["rotation_speed"] = 360
+	},
+	["RingSegment01"] = {
+		["rotation_speed"] = 360
+	},
+	["RingSegment04"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingSquare03"] = {
+		["rotation_speed"] = 360
+	},
+	["Wheel03"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingBall04"] = {
+		["rotation_speed"] = 360
+	},
+	["SpinBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackBlade03"] = {
+		["rotation_speed"] = 360
+	},
+	["InvisibleBlade03"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["Cogwheel03"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingBall02"] = {
+		["rotation_speed"] = 360
+	},
+	["LightBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["SpiralShape01"] = {
+		["rotation_speed"] = 360
+	},
+	["SpiralRingShape01"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackCogwheel02"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingSquare02"] = {
+		["rotation_speed"] = 360
+	},
+	["RegularSaw02"] = {
+		["rotation_speed"] = 360
+	},
+	["SpiralShape04"] = {
+		["rotation_speed"] = 360
+	},
+	["SpikeWheel03"] = {
+		["rotation_speed"] = 360
+	},
+	["PointyBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["Wheel01"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingLine02"] = {
+		["rotation_speed"] = 360
+	},
+	["PickupCircle02"] = {
+		["rotation_speed"] = 360
+	},
+	["SpikeWheel02"] = {
+		["rotation_speed"] = 360
+	},
+	["InvisibleBlade02"] = {
+		["rotation_speed"] = 360
+	},
+	["RotatingLine04"] = {
+		["rotation_speed"] = 360
+	},
+	["ScaleFadeRing01"] = {
+		["rotation_speed"] = 360
+	},
+	["ScaleFadeRing04"] = {
+		["rotation_speed"] = 360
+	},
+	["RingSegment02"] = {
+		["rotation_speed"] = 360
+	},
+	["RoundCloud03"] = {
+		["rotation_speed"] = 360
+	},
+	["Cogwheel02"] = {
+		["rotation_speed"] = 360
+	},
+	["BlackCogwheel03"] = {
+		["rotation_speed"] = 360
+	},
+	["LightBlade01"] = {
+		["rotation_speed"] = 360
+	},
+	["ScaleFadeRing02"] = {
+		["rotation_speed"] = 360
+	}
+}
+return v1
 
 
 
