@@ -12476,3 +12476,1672 @@ function v_u_1.SlopeAgainstAxisAlignedCube(p182, p183, p184, p185)
 	return v196, v197, v198
 end
 return v_u_1
+local v_u_1 = game:GetService("ReplicatedStorage")
+local _ = game:GetService("Players").LocalPlayer
+local v2 = v_u_1.Shared
+require(v2.Info.Colors)
+local v_u_3 = require(v2.Classes.Level.Physics)
+local v_u_4 = require(v2.Info.Gamemodes)
+local v_u_5 = require(v2.Singletons.DataManager)
+local v_u_6 = require(v_u_1.Shared.Info.Constants)
+local v_u_7 = require(script.Parent.DebugLine)
+local v_u_8 = require(script.Icon)
+local v_u_9 = require(script.HitboxFunctions)
+local v_u_10 = require(script.Animator)
+local v_u_11 = require(script.AnimationStateManager)
+local v_u_12 = require(script.VelocityNormalization)
+local v_u_13 = {}
+v_u_13.__index = v_u_13
+function v_u_13.new(p14, p15)
+	-- upvalues: (copy) v_u_13, (copy) v_u_8, (copy) v_u_10, (copy) v_u_11, (copy) v_u_7
+	local v16 = v_u_13
+	local v17 = setmetatable({}, v16)
+	v17.playerId = #p14.Players + 1
+	v17.icon_system = v_u_8.new(p15.SurfaceGui.Player, v17)
+	v17.animator = v_u_10.new(p15.SurfaceGui.Player, v17)
+	v17.animationStateManager = v_u_11.new(v17.animator)
+	v17.position = Vector3.new(-0.5, 0, 0)
+	v17.velocityX = 0
+	v17.velocityY = 0
+	v17.dashVelocityY = 0
+	v17.rotationVelocity = 0
+	v17.gravityWhenGrounded = 1
+	v17.robotGravityWhenInit = 1
+	v17.lastGrounded = true
+	v17.grounded = true
+	v17.jumping = false
+	v17.jumpedDuringFrame = false
+	v17.didRobotInitiate = false
+	v17.didJump = false
+	v17.hidden = false
+	v17.ghostTrailEnabled = false
+	v17.jumpsInRow = 0
+	v17.gamemode = 1
+	v17.gravity = 1
+	v17.gravityScalar = 1
+	v17.rotation = 0
+	v17.steepness = 0
+	v17.lastSteepness = 0
+	v17.jumpTimeElapsed = 0
+	v17.isMini = false
+	v17.isDashing = false
+	v17.trailEnabled = false
+	v17.died = false
+	v17.object_ptr = p15
+	v17.level_ptr = p14
+	v17.dash_particles = {}
+	v17.fire_particles = {}
+	v17.square_trigs_touched = {}
+	v17.dart_trailA = v_u_7.new(Color3.new(1, 1, 1))
+	v17.dart_trailA.Folder.Name = "DartTrailA"
+	v17.dart_trailA.min_angle = 5
+	v17.dart_trailA.zIndex = -2
+	v17.dart_trailA.brightness = 3
+	v17.dart_trailB = v_u_7.new(Color3.new(1, 1, 1))
+	v17.dart_trailB.Folder.Name = "DartTrailB"
+	v17.dart_trailB.min_angle = 5
+	v17.dart_trailB.zIndex = -1
+	v17.dart_trailB.brightness = 3
+	v17.dart_trailB:SetWidth(0.15)
+	v17.trailid = 1
+	v17.trailAlwaysActive = false
+	v17.icon_system:MakeVisuals()
+	v17:InitVisuals()
+	return v17
+end
+function v_u_13.Reset(p18)
+	-- upvalues: (copy) v_u_1
+	table.clear(p18.dash_particles)
+	table.clear(p18.fire_particles)
+	table.clear(p18.square_trigs_touched)
+	p18.position = Vector3.new(-0.5, 0, 0)
+	p18.jumpsInRow = 0
+	p18.velocityX = 0
+	p18.velocityY = 0
+	p18.rotation = 0
+	p18.rotationVelocity = 0
+	p18.jumpTimeElapsed = 0
+	p18.gravity = 1
+	p18.gravityScalar = 1
+	p18.died = false
+	p18.grounded = true
+	p18.jumpedDuringFrame = false
+	p18.didRobotInitiate = false
+	p18.didJump = false
+	p18.lastGrounded = true
+	p18.trailEnabled = false
+	p18.isMini = false
+	p18.isDashing = false
+	p18.hidden = false
+	p18.ghostTrailEnabled = false
+	local v19 = v_u_1.Prefabs.Level.Immutable.Player:Clone()
+	p18.object_ptr.Particles:Destroy()
+	p18.object_ptr.Trails:Destroy()
+	p18.object_ptr.CFrame = CFrame.new(Vector3.new(-0.5, 0, 0))
+	p18.object_ptr.Size = Vector3.new(1, 1, 1)
+	p18.object_ptr.SurfaceGui.Enabled = true
+	v19.Particles.Parent = p18.object_ptr
+	v19.Trails.Parent = p18.object_ptr
+	v19:Destroy()
+	p18.dart_trailA:Reset()
+	p18.dart_trailB:Reset()
+	p18:ShowGamemode()
+	p18:InitVisuals()
+end
+function v_u_13.InitVisuals(p20)
+	-- upvalues: (copy) v_u_5, (copy) v_u_8, (copy) v_u_4
+	local v21 = v_u_5:GetData()
+	p20.color1 = p20.level_ptr.pcol1
+	p20.color2 = p20.level_ptr.pcol2
+	p20.colorG = p20.level_ptr.gcol
+	local v22 = p20.playerId % 2 == 1
+	local v23
+	if v22 then
+		v23 = p20.color1
+	else
+		v23 = p20.color2
+	end
+	local v24
+	if v22 then
+		v24 = p20.color2
+	else
+		v24 = p20.color1
+	end
+	p20.trailid = v21.customization.trail_id
+	p20.trailAlwaysActive = p20.trailid == 5 and true or p20.trailid == 6
+	local v25
+	if v21.settings.switch_spider_teleport_color then
+		v25 = v24
+	else
+		v25 = v23
+	end
+	p20.spiderTeleportColor = v25
+	local v26
+	if v21.settings.switch_dash_fire_color then
+		v26 = v24
+	else
+		v26 = v23
+	end
+	p20.dashFireColor = v26
+	if not v21.settings.switch_wave_trail_color then
+		v24 = v23
+	end
+	p20.dartTrailColor = v24
+	p20.dart_trailA:SetColor(p20.dartTrailColor)
+	p20.object_ptr.SurfaceGui.ZOffset = p20.playerId - 1
+	p20.object_ptr.Trails.Trail.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	p20.object_ptr.Trails.ShipTrail.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	p20.object_ptr.Particles.deathEffect.Circle.Color = ColorSequence.new(v23)
+	p20.object_ptr.Particles.deathEffect.Debris.Color = ColorSequence.new(v23)
+	p20.object_ptr.Particles.dragEffect.ParticleEmitter.Color = ColorSequence.new(v23)
+	p20.object_ptr.Particles.landEffect.ParticleEmitter.Color = ColorSequence.new(v23)
+	local v27 = v_u_8.IconData.trail[p20.trailid]
+	for v28 = 1, 2 do
+		local v29
+		if v28 == 1 then
+			v29 = p20.object_ptr.Trails.Trail
+		else
+			v29 = p20.object_ptr.Trails.ShipTrail
+		end
+		local v30 = 0.167
+		v29.Texture = v27.trail_img
+		if p20.trailid == 1 or (p20.trailid == 2 or (p20.trailid == 3 or (p20.trailid == 4 or (p20.trailid == 5 or p20.trailid == 7)))) then
+			v29.Lifetime = 0.3
+			v29.TextureMode = Enum.TextureMode.Stretch
+			if p20.trailid ~= 2 then
+				p20.object_ptr.Trails.Trail.Color = ColorSequence.new(v23)
+				p20.object_ptr.Trails.ShipTrail.Color = ColorSequence.new(v23)
+			end
+		elseif p20.trailid == 6 then
+			v29.Lifetime = 10
+			v29.TextureMode = Enum.TextureMode.Static
+		end
+		local v31 = p20.trailid == 5 and 0.12 or (p20.trailid == 6 and 0.05 or v30)
+		local v32 = v29.Attachment0
+		local v33 = v29.Attachment0.Position.X
+		local v34 = v29.Attachment0.Position.Z
+		v32.Position = Vector3.new(v33, v31, v34)
+		local v35 = v29.Attachment1
+		local v36 = v29.Attachment1.Position.X
+		local v37 = -v31
+		local v38 = v29.Attachment1.Position.Z
+		v35.Position = Vector3.new(v36, v37, v38)
+	end
+	local v39 = p20.object_ptr.Particles.GhostTrail:FindFirstChild("GhostTemplate")
+	if v39 then
+		for v40 = 1, 8 do
+			local v41 = v39:Clone()
+			v41.Name = v40
+			v41.Color = ColorSequence.new(v23)
+			v41.Parent = v39.Parent
+			local v42 = v_u_4[v40]
+			local v43 = v21.customization[v42 .. "_id"]
+			local v44 = v_u_8.IconData[v42][v43] or v_u_8.IconData[v42][1]
+			local v45 = v44.layer1 or (v44.robot_01 or v44.spider_01)
+			v41.Texture = v45.img
+			v41.Squash = NumberSequence.new(-(v45.width / v45.height - 1) * 1 / 3)
+		end
+		v39:Destroy()
+	end
+end
+function v_u_13.ShowGamemode(p46)
+	-- upvalues: (copy) v_u_4
+	p46.object_ptr.SurfaceGui.Player.cube.Visible = (p46.gamemode == 1 or p46.gamemode == 2) and true or p46.gamemode == 4
+	p46.object_ptr.SurfaceGui.Player.ship.Visible = p46.gamemode == 2
+	p46.object_ptr.SurfaceGui.Player.ball.Visible = p46.gamemode == 3
+	p46.object_ptr.SurfaceGui.Player.bird.Visible = p46.gamemode == 4
+	p46.object_ptr.SurfaceGui.Player.dart.Visible = p46.gamemode == 5
+	p46.object_ptr.SurfaceGui.Player.robot.Visible = p46.gamemode == 6
+	p46.object_ptr.SurfaceGui.Player.spider.Visible = p46.gamemode == 7
+	p46.object_ptr.SurfaceGui.Player.swing.Visible = p46.gamemode == 8
+	p46.icon_system:UpdateGravityFlip(v_u_4[p46.gamemode])
+	p46.animationStateManager:SetGamemodeId(p46.gamemode)
+	for _, v47 in p46.fire_particles do
+		p46.level_ptr.particleManager:RemoveParticle(v47)
+	end
+	table.clear(p46.fire_particles)
+	if p46.gamemode == 5 then
+		p46.dart_trailA.previousPoint = Vector3.new(0, 0, 0)
+		p46.dart_trailB.previousPoint = Vector3.new(0, 0, 0)
+	elseif p46.gamemode == 6 then
+		p46.fire_particles[1] = p46.level_ptr.particleManager:AddParticle(Color3.new(1, 1, 1), "fire_boost")
+	elseif p46.gamemode == 8 then
+		p46.fire_particles[1] = p46.level_ptr.particleManager:AddParticle(Color3.new(1, 1, 1), "fire_boost")
+		p46.fire_particles[2] = p46.level_ptr.particleManager:AddParticle(Color3.new(1, 1, 1), "fire_boost")
+		p46.fire_particles[3] = p46.level_ptr.particleManager:AddParticle(Color3.new(1, 1, 1), "fire_boost")
+	end
+	local v48 = p46.level_ptr:GetOtherPlayer(p46.playerId)
+	if v48 and v48.gamemode == p46.gamemode then
+		v48:SetGravity(-p46.gravity)
+	end
+end
+function v_u_13.SetGravity(p49, p50)
+	p49.gravity = p50
+	p49.icon_system:UpdateGravityFlip()
+end
+function v_u_13.CanHitHead(p51)
+	return p51.square_trigs_touched.TriggerH and true or ((p51.gamemode == 2 or (p51.gamemode == 3 or (p51.gamemode == 4 or (p51.gamemode == 5 or p51.gamemode == 7)))) and true or p51.gamemode == 8)
+end
+function v_u_13.IsRotationValidForGravity(p52, p53, p54)
+	local v55 = (p53 + (p54 == -1 and 180 or 0)) % 360
+	if p52.gravity == 1 then
+		return v55 <= 90 and true or v55 >= 270
+	end
+	local v56
+	if v55 >= 90 then
+		v56 = v55 <= 270
+	else
+		v56 = false
+	end
+	return v56
+end
+function v_u_13.TouchedGamemodePortal(p57, p58)
+	-- upvalues: (copy) v_u_6, (copy) v_u_12, (copy) v_u_4
+	local v59 = p58.Name == "PortalGamemodeShip" and 2 or (p58.Name == "PortalGamemodeBall" and 3 or (p58.Name == "PortalGamemodeBird" and 4 or (p58.Name == "PortalGamemodeDart" and 5 or (p58.Name == "PortalGamemodeRobot" and 6 or (p58.Name == "PortalGamemodeSpider" and 7 or (p58.Name == "PortalGamemodeSwing" and 8 or 1))))))
+	if p58.Name ~= "PortalGamemodeDart" then
+		p57.dart_trailA:Reset()
+		p57.dart_trailB:Reset()
+	end
+	local v60
+	if p57.gamemode == v59 then
+		v60 = false
+	else
+		if p57.level_ptr.game_version >= v_u_6.UPDATES.UPD_1_4 then
+			local v61 = v_u_12.GamemodeTypes[p57.gamemode] or 1
+			local v62 = v_u_12.GamemodeTypes[v59] or 1
+			local v63 = v_u_12.Conversions[v61]
+			local v64 = v63 and v63[v62]
+			if v64 then
+				p57.velocityY = p57.velocityY * v64
+			end
+		end
+		p57.gamemode = v59
+		p57:ShowGamemode()
+		p57:TickSpecialRotation(true)
+		v60 = true
+	end
+	local v65 = p57.level_ptr.GameObjects[p58]
+	p57.level_ptr:SetBorders(p58.Position.Y, v65.triggerData.gridSnapDisabled, v65.triggerData.freeMode)
+	p57.icon_system:UpdateGravityFlip(v_u_4[v59])
+	return v60
+end
+function v_u_13.StartDash(p66, p67)
+	local v68 = p67.Name == "OrbDashGravity"
+	local v69
+	if v68 then
+		v69 = Color3.new(1, 0, 1)
+	else
+		v69 = Color3.new(0, 1, 0)
+	end
+	p66.isDashing = true
+	if v68 then
+		p66:SetGravity(-p66.gravity)
+		p66.level_ptr.PlayEffect:Fire("GravityEffect")
+	end
+	local v70 = v68 and p66.level_ptr:GetOtherPlayer(p66.playerId)
+	if v70 then
+		v70:SetGravity(-p66.gravity)
+	end
+	local _, _, v71 = p67.CFrame:ToOrientation()
+	local v72 = math.tan(v71)
+	p66.dashVelocityY = math.clamp(v72, -3.7320508075688776, 3.7320508075688776)
+	for _, v73 in p66.dash_particles do
+		p66.level_ptr.particleManager:RemoveParticle(v73)
+	end
+	local v74 = p66.level_ptr.particleManager:AddParticle(v69, "dash_start")
+	p66.level_ptr.particleManager.particles[v74].position = p67.Position
+	local v75 = p66.dash_particles
+	local v76 = p66.level_ptr.particleManager
+	local v77 = p66.dashFireColor
+	table.insert(v75, v76:AddParticle(v77, "dash_base"))
+	local v78 = p66.dash_particles
+	local v79 = p66.level_ptr.particleManager
+	local v80 = p66.dashFireColor
+	table.insert(v78, v79:AddParticle(v80, "dash_outline"))
+end
+function v_u_13.StopDash(p81)
+	-- upvalues: (copy) v_u_6
+	if p81.isDashing then
+		p81.isDashing = false
+		p81.dashVelocityY = 0
+		p81.rotationVelocity = 0
+		for _, v82 in p81.dash_particles do
+			p81.level_ptr.particleManager:RemoveParticle(v82)
+		end
+		table.clear(p81.dash_particles)
+		if p81.level_ptr.game_version >= v_u_6.UPDATES.UPD_1_4 then
+			p81.velocityY = 0
+		end
+	end
+end
+function v_u_13.CheckCollision(p83, p84, p85, p86, p87)
+	-- upvalues: (copy) v_u_3
+	local v88 = 0
+	local v89 = p84.Parent
+	local v90 = p83.level_ptr.GameObjects[v89]
+	local v91 = p86 or p83.position
+	local v92 = Vector2.yAxis
+	if v90:HasTag("SlopeHitbox") then
+		if v90:HasTag("Hazard") then
+			local v93, v94, v95 = v_u_3.SlopeAgainstAxisAlignedCube(p84, p83.level_ptr.GameObjects[v89], Vector2.new(v91.X, v91.Y), p85)
+			return v93, v94, v95, v88
+		else
+			local v96, v97, v98, v99 = v_u_3.SlopeAgainstCircle(p84, p83.level_ptr.GameObjects[v89], Vector2.new(v91.X, v91.Y), p85 * 0.5)
+			return v96, v97, v98, v99
+		end
+	elseif v90:HasTag("RoundHitbox") then
+		local v100 = v_u_3.CircleAgainstAxisAlignedCube
+		local v101 = Vector2.new(p84.Position.X, p84.Position.Y)
+		local v102 = p84.Size.X
+		local v103 = p84.Size.Y
+		local v104, v105, v106 = v100(v101, math.max(v102, v103) * 0.5, Vector2.new(v91.X, v91.Y), p85)
+		return v104, v105, v106, v88
+	elseif p87 then
+		local v107, v108, v109 = v_u_3.RectAgainstCircle(p84, p83.level_ptr.GameObjects[v89], Vector2.new(v91.X, v91.Y), p85 * 0.5)
+		return v107, v108, v109, v88
+	else
+		local v110, v111, v112 = v_u_3.RectAgainstAxisAlignedCube(p84, p83.level_ptr.GameObjects[v89], Vector2.new(v91.X, v91.Y), p85, v92)
+		return v110, v111, v112, v88
+	end
+end
+function v_u_13.AddVelocity(p113, p114, p115, p116, p117, p118)
+	if not p117 then
+		p114 = p114 * p113.level_ptr.time_scale
+	end
+	local v119
+	if p117 then
+		v119 = p114
+	else
+		v119 = p113.velocityY + p114
+	end
+	if p115 < v119 or (p114 > 0 or p118 and p113.gravity == -1) then
+		if v119 < p116 or (p114 < 0 or p118 and p113.gravity == 1) then
+			p113.velocityY = v119
+		end
+	else
+		return
+	end
+end
+function v_u_13.RotateToTargetRotation(p120, p121, p122)
+	local v123 = (p120.rotation - p121) % 360
+	local v124 = (p121 - p120.rotation) % 360
+	if math.abs(v123) >= math.abs(v124) then
+		v123 = -v124
+	end
+	p120.rotationVelocity = v123 * p122
+end
+function v_u_13.IsObjectCollidable(p125, p126, p127)
+	return not (p126:HasTag("Collidable") and p126:IsExtraSet("Passable")) or p127 == -p125.gravity
+end
+function v_u_13.DoesIgnoreDamage(p128)
+	return p128.level_ptr.ignoreDamage
+end
+function v_u_13.Die(p129)
+	if p129:DoesIgnoreDamage() then
+		return false
+	end
+	p129.died = true
+	return true
+end
+function v_u_13.TickCollision(p130, p131, p132)
+	-- upvalues: (copy) v_u_9
+	if p130.object_ptr then
+		local v133 = p130.isMini and 0.6 or 1
+		local v134 = v133 * (p130.gamemode == 5 and 0.35 or 1)
+		local v135 = (p130.gamemode == 5 and 0.35 or 1) * 1 / 3
+		local v136 = (p130.gamemode == 5 and 0.75 or 1) * 0.5 * v133
+		local v137 = workspace:GetPartBoundsInBox(CFrame.new(p130.position), Vector3.new(1, 1, 1))
+		if not p131 then
+			table.clear(p130.square_trigs_touched)
+			for _, v138 in v137 do
+				local v139 = v138.Parent
+				local v140 = p130.level_ptr.GameObjects[v139]
+				if v140 and (v140:HasTag("SquareTrigger") and (not v140:IsExtraSet("NoTouch") and (not v140:HasTag("is_toggled") and p130:CheckCollision(v138, v134)))) then
+					p130.square_trigs_touched[v139.Name] = true
+					v_u_9.touchedSquareTrigger(p130, v138)
+				end
+			end
+		end
+		local v141 = {}
+		if not p131 and p132 then
+			p130.steepness = 0
+			p130.grounded = false
+			p130.jumpedDuringFrame = false
+		end
+		for _, v142 in v137 do
+			local v143 = p130.level_ptr.GameObjects[v142.Parent]
+			if v143 and (not v143:HasTag("SquareTrigger") and (not v143:IsExtraSet("NoTouch") and (not v143:HasTag("is_toggled") and (not v143:HasTag("is_destroyed") and v143:HasHitboxFunctionality())))) then
+				if v143:HasTag("Hazard") then
+					if not p131 then
+						v141[v142] = v143
+					end
+				else
+					local v144, _, v145, v146 = p130:CheckCollision(v142, v134)
+					if v144 then
+						if p131 then
+							v_u_9.touchedHitbox(p130, v142)
+							if p130.playerId == nil then
+								return
+							end
+						else
+							local v147 = p130.velocityY - v146 * p130.velocityX
+							local v148 = math.sign(v147)
+							local v149 = p130.position.Y - v143.position.Y
+							local v150 = math.sign(v149)
+							local v151 = p130:IsObjectCollidable(v143, v148)
+							local v152
+							if v148 == -p130.gravity then
+								if math.sign(v145) == p130.gravity then
+									v152 = true
+								elseif math.sign(v145) == 0 then
+									v152 = v150 == p130.gravity
+								else
+									v152 = false
+								end
+							else
+								v152 = false
+							end
+							local v153 = not p130.isDashing
+							if not v153 then
+								local v154 = p130.dashVelocityY
+								v153 = math.sign(v154) == math.sign(v145) and true or p130:CanHitHead()
+							end
+							if v151 and (v152 or p130:CanHitHead()) and (v153 and math.abs(v145) < 0.3333333333333333) then
+								if p130.gamemode == 5 and (not v143:HasTag("Destructible") and (not p130.square_trigs_touched.TriggerD and (not p130:DoesIgnoreDamage() and p130:Die()))) then
+									return
+								end
+								local v155 = p130.position
+								local v156 = v145 - math.sign(v145) * 0.0001
+								p130.position = v155 + Vector3.new(0, v156, 0)
+								if v152 then
+									p130.grounded = true
+								end
+								if math.sign(v145) > 0 then
+									local v157 = v146 * p130.velocityX
+									local v158 = p130.velocityY
+									p130.velocityY = math.max(v157, v158)
+								elseif math.sign(v145) < 0 then
+									local v159 = v146 * p130.velocityX
+									local v160 = p130.velocityY
+									p130.velocityY = math.min(v159, v160)
+								end
+								p130.steepness = v146
+							elseif v143:HasTag("Collidable") and p130.square_trigs_touched.TriggerF then
+								local v161 = p130.position.Y - v142.Position.Y
+								local v162 = math.sign(v161)
+								p130.gravity = v162 == 0 and 1 or v162
+								local v163 = p130.position
+								local v164 = v145 - math.sign(v145) * 0.0001
+								p130.position = v163 + Vector3.new(0, v164, 0)
+								if v152 then
+									p130.grounded = true
+								end
+								if math.sign(v145) > 0 then
+									local v165 = v146 * p130.velocityX
+									local v166 = p130.velocityY
+									p130.velocityY = math.max(v165, v166)
+								elseif math.sign(v145) < 0 then
+									local v167 = v146 * p130.velocityX
+									local v168 = p130.velocityY
+									p130.velocityY = math.min(v167, v168)
+								end
+								p130.steepness = v146
+							end
+						end
+					end
+				end
+			end
+		end
+		if not p131 then
+			for v169, _ in v141 do
+				if p130:CheckCollision(v169, v134) and p130:Die() then
+					return
+				end
+			end
+			local v170 = v136 + 2.1
+			local v171 = v136 * 1 / 6 + 2.1
+			if p130.position.Y <= p130.level_ptr.groundY1 + v170 + 0.0001 and (p130.gravity == 1 or p130:CanHitHead()) then
+				if p130.velocityY <= 0 and p130.gravity == 1 then
+					p130.grounded = true
+				end
+				local v172 = p130.position.X
+				local v173 = p130.level_ptr.groundY1 + v170
+				p130.position = Vector3.new(v172, v173, 0)
+				local v174 = p130.velocityY
+				p130.velocityY = math.max(0, v174)
+			elseif p130.position.Y < p130.level_ptr.groundY1 + v171 then
+				p130:Die()
+			end
+			if p130.level_ptr.groundY2 < 999 then
+				if p130.position.Y >= p130.level_ptr.groundY2 - v170 - 0.0001 and (p130.gravity == -1 or p130:CanHitHead()) then
+					if p130.velocityY >= 0 and p130.gravity == -1 then
+						p130.grounded = true
+					end
+					local v175 = p130.position.X
+					local v176 = p130.level_ptr.groundY2 - v170
+					p130.position = Vector3.new(v175, v176, 0)
+					local v177 = p130.velocityY
+					p130.velocityY = math.min(0, v177)
+				elseif p130.position.Y > p130.level_ptr.groundY2 - v171 then
+					p130:Die()
+				end
+			end
+			for _, v178 in workspace:GetPartBoundsInBox(CFrame.new(p130.position), Vector3.new(1, 1, 1) * v135) do
+				local v179 = p130.level_ptr.GameObjects[v178.Parent]
+				if v179 and (v179:HasTag("Collidable") and not (v179:IsExtraSet("NoTouch") or (v179:HasTag("is_toggled") or v179:HasTag("is_destroyed")))) then
+					local v180, _, _, v181 = p130:CheckCollision(v178, v135)
+					if v180 then
+						local v182 = p130.velocityY - v181 * p130.velocityX
+						if p130:IsObjectCollidable(v179, (math.sign(v182))) and (not v_u_9.touchedHitboxWithSmall(p130, v178) and p130:Die()) then
+							return
+						end
+					end
+				end
+			end
+		end
+	else
+		return
+	end
+end
+function v_u_13.SpiderJumpInDirection(p183, p184)
+	local v185 = p184.Unit.Y
+	local _ = p183.position.Y
+	local v186 = p183.position.Y
+	local v187 = 0
+	while true do
+		v186 = v186 + v185 * 0.1
+		v187 = v187 + 0.1
+		local v188 = p183.isMini and 0.6 or 1
+		local v189 = v188 * (p183.gamemode == 5 and 0.3 or 1)
+		local v190 = (p183.gamemode == 5 and 0.75 or 1) * 0.5 * v188 + 2.1
+		if v186 <= p183.level_ptr.groundY1 + v190 and v185 < 0 then
+			v186 = p183.level_ptr.groundY1 + v190
+			break
+		end
+		if p183.level_ptr.groundY2 < 999 and (v185 > 0 and p183.level_ptr.groundY2 - v190 <= v186) then
+			v186 = p183.level_ptr.groundY2 - v190
+			break
+		end
+		local v191 = p183.position.X
+		local v192 = Vector3.new(v191, v186, 0)
+		local v193 = workspace:GetPartBoundsInBox(CFrame.new(v192), Vector3.new(1, 1, 1) * v189)
+		if #v193 ~= 0 then
+			for _, v194 in v193 do
+				local v195 = p183.level_ptr.GameObjects[v194.Parent]
+				if v195 and not v195:IsExtraSet("NoTouch") then
+					local v196, _, v197 = p183:CheckCollision(v194, v189, v192)
+					if v196 and (math.sign(v197) == -v185 and (not v195:HasTag("is_destroyed") and (not v195:HasTag("is_toggled") and (v195:HasTag("Collidable") or v195:HasTag("Hazard") and p183:Die())))) then
+						v186 = v186 + v197
+						v187 = (1 / 0)
+						break
+					end
+				end
+			end
+		end
+		if v187 >= 100 then
+			break
+		end
+	end
+	local v198 = p183.position.X
+	local v199 = (p183.position.Y + v186) * 0.5
+	local v200 = Vector3.new(v198, v199, 0)
+	local v201 = v186 - p183.position.Y
+	local v202 = p183.level_ptr.particleManager:AddParticle(p183.spiderTeleportColor, "spider_dash")
+	local v203 = p183.level_ptr.particleManager.particles[v202]
+	v203.position = v200
+	v203.scaling = Vector2.new(math.abs(v201), 1)
+	v203.rotation = math.sign(v201) * -90
+	local v204 = p183.position.X
+	p183.position = Vector3.new(v204, v186, 0)
+	p183.velocityY = 0
+	local v205 = p184.Y
+	p183:SetGravity(-math.round(v205))
+	p183.jumping = false
+end
+function v_u_13.UpdateVelocityX(p206)
+	-- upvalues: (copy) v_u_3
+	p206.velocityX = v_u_3.Speeds[p206.level_ptr.levelSettings.gameplaySpeed]
+	local v207 = p206.velocityX / v_u_3.Speeds[2]
+	p206.animationStateManager:UpdateAnimationSpeed("Run", v207)
+	local v208 = p206.level_ptr:GetOtherPlayer(p206.playerId)
+	if v208 then
+		v208.velocityX = p206.velocityX
+		v208.animationStateManager:UpdateAnimationSpeed("Run", v207)
+	end
+end
+function v_u_13.TickSpecialRotation(p209, p210)
+	local v211 = p209.steepness
+	local v212 = math.atan2(v211, 1)
+	local v213 = -math.deg(v212)
+	local v214 = nil
+	local v215 = nil
+	if p209.gamemode == 2 or (p209.gamemode == 5 or p209.gamemode == 8) then
+		local v216 = p209.velocityY
+		local v217 = p209.velocityX
+		local v218 = math.atan2(v216, v217)
+		v214 = math.deg(v218)
+		if p209.gamemode == 2 or p209.gamemode == 8 then
+			v215 = 10
+		else
+			v215 = 20
+		end
+	elseif p209.gamemode == 4 then
+		local v219 = p209.velocityY
+		local v220 = math.sign(v219) == p209.gravity and 1.5 or 0.5
+		local v221 = -p209.velocityY * v220
+		local v222 = math.clamp(v221, -20, 20)
+		local v223
+		if p209.isDashing then
+			local v224 = p209.dashVelocityY
+			local v225 = math.atan2(v224, 1)
+			v223 = math.deg(v225)
+		else
+			v223 = 0
+		end
+		v214 = v222 + v223 - v213
+		v215 = 20
+	elseif p209.gamemode == 6 or p209.gamemode == 7 then
+		local v226
+		if p209.isDashing then
+			local v227 = p209.dashVelocityY
+			local v228 = math.atan2(v227, 1)
+			v226 = math.deg(v228)
+		else
+			v226 = 0
+		end
+		v214 = -v213 + v226
+		v215 = 15
+	end
+	if p210 then
+		p209.rotationVelocity = 0
+	end
+	if not (v214 and v215) then
+		return false
+	end
+	if p210 then
+		p209.rotation = v214
+	else
+		p209:RotateToTargetRotation(v214, v215)
+	end
+	return true
+end
+function v_u_13.TickGamemodeMovement(p229)
+	-- upvalues: (copy) v_u_6
+	local v230 = p229.steepness
+	local v231 = math.atan2(v230, 1)
+	local v232 = -math.deg(v231)
+	local v233 = p229.isMini and 0.6 or 1
+	if p229.gamemode ~= 1 then
+		if p229.gamemode == 2 then
+			if p229.level_ptr.game_version >= v_u_6.UPDATES.UPD_1_4 then
+				local v234 = p229.isMini and 13.51 or 11.51
+				local v235 = p229.isMini and 16.95 or 14.5
+				local v236
+				if p229.gravity > 0 then
+					v236 = -v234
+				else
+					v236 = -v235
+				end
+				local v237
+				if p229.gravity > 0 then
+					v237 = v235
+				else
+					v237 = v234
+				end
+				local v238, v239
+				if p229.isMini then
+					v238 = 1.1
+					v239 = 1.5
+				else
+					v238 = 1
+					v239 = 1
+				end
+				local v240 = p229.velocityY * p229.gravity
+				if p229.jumping then
+					local v241 = v240 / -v234
+					local v242 = math.clamp(v241, 0, 1)
+					local v243 = v238 * 40.5
+					local v244 = v239 * 56
+					p229:AddVelocity(math.lerp(v243, v244, v242) * p229.level_ptr.tick_rate * p229.gravity, v236, v237, false, false)
+					p229.jumpsInRow = p229.jumpsInRow + 1
+				else
+					local v245 = v240 / v235
+					local v246 = math.clamp(v245, 0, 1)
+					local v247 = v238 * 31
+					local v248 = v239 * 48
+					p229:AddVelocity(-math.lerp(v247, v248, v246) * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, v236, v237, false, false)
+					p229.jumpsInRow = 0
+				end
+			else
+				local v249 = p229.isMini and 13.835 or 11.511
+				local v250 = p229.isMini and 17.294 or 14.388
+				local v251
+				if p229.gravity == 1 then
+					v251 = -v249
+				else
+					v251 = -v250
+				end
+				if p229.gravity == 1 then
+					v249 = v250
+				end
+				if p229.jumping then
+					p229:AddVelocity((p229.isMini and 48.6 or 44) * p229.level_ptr.tick_rate * p229.gravity, v251, v249, false, false)
+					p229.jumpsInRow = p229.jumpsInRow + 1
+				else
+					p229:AddVelocity(-(p229.isMini and 36 or 32.3) * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, v251, v249, false, false)
+					p229.jumpsInRow = 0
+				end
+			end
+			if not p229.hidden then
+				local v252 = p229.level_ptr.ticks
+				local v253 = p229.level_ptr.particle_frequency * 0.334
+				if v252 % math.ceil(v253) == 0 then
+					local v254 = p229.level_ptr.time_elapsed * 50
+					math.sin(v254)
+					local v255 = v254 * 2
+					math.cos(v255)
+					local v256 = p229.object_ptr.Particles.ShipTrail.FireParticles
+					local v257 = v233 * -0.7
+					local v258 = v233 * -0.196
+					v256.Position = Vector3.new(v257, v258, 0.25)
+					p229.object_ptr.Particles.ShipTrail.FireParticles.ParticleEmitter.Acceleration = Vector3.new(-0, -15, -0) * p229.gravity
+					p229.object_ptr.Particles.ShipTrail.FireParticles.ParticleEmitter:Emit(1)
+					if p229.jumping then
+						p229.object_ptr.Particles.ShipTrail.FireParticles.Boost.Acceleration = Vector3.new(-0, -5, -0) * p229.gravity
+						p229.object_ptr.Particles.ShipTrail.FireParticles.Boost:Emit(1)
+					end
+				end
+			end
+			local v259 = p229.object_ptr.Particles.ShipTrail.ShipTrail0
+			local v260 = v233 * -0.6
+			local v261 = v233 * -0.175
+			v259.Position = Vector3.new(v260, v261, 0.25)
+			local v262 = p229.object_ptr.Particles.ShipTrail.ShipTrail1
+			local v263 = v233 * -0.6
+			local v264 = v233 * -0.435
+			v262.Position = Vector3.new(v263, v264, 0.25)
+		elseif p229.gamemode == 3 then
+			p229:AddVelocity(-57.244 * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -25.9403372245, 25.9403372245, false, true)
+			if p229.grounded and not (p229.jumping and p229.lastGrounded) then
+				local v265 = p229.velocityX * p229.gravity
+				p229.rotationVelocity = math.deg(v265) / v233
+			end
+			if p229.jumping and (p229.grounded and p229.jumpsInRow == 0) then
+				p229:AddVelocity(4.3 * p229.gravity * p229.gravityScalar, -25.9403372245, 25.9403372245, true, true)
+				p229:SetGravity(-p229.gravity)
+				p229.jumpsInRow = p229.jumpsInRow + 1
+				local v266 = p229.level_ptr
+				v266.jumps = v266.jumps + 1
+			elseif not p229.jumping then
+				p229.jumpsInRow = 0
+			end
+			if p229.level_ptr.levelSettings.gravLinked then
+				local v267 = p229.level_ptr:GetOtherPlayer(p229.playerId)
+				if v267 and (v267.gamemode == p229.gamemode and (p229.gravity == v267.gravity and not (v267.isDashing or p229.isDashing))) then
+					local v268 = p229.position.Y - v267.position.Y
+					if (v267.object_ptr.Size.Y + p229.object_ptr.Size.Y) * 0.5 >= math.abs(v268) then
+						local v269 = p229.velocityY
+						local v270 = v267.velocityY
+						local v271 = v268 + v269
+						local v272 = math.abs(v271)
+						local v273 = v268 + v270
+						local v274 = v272 < math.abs(v273)
+						local v275
+						if v274 then
+							v275 = v267
+						else
+							v275 = p229
+						end
+						if v274 then
+							v267 = p229
+						end
+						v275:SetGravity(-v267.gravity)
+						v275.velocityY = 0
+					end
+				end
+			end
+		elseif p229.gamemode == 4 then
+			local v276 = p229.isMini and 13.48897535674 or 11.413748378780001
+			p229:AddVelocity(-(p229.isMini and 44 or 39.6) * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -v276, v276, false, true)
+			if p229.jumping and p229.jumpsInRow == 0 then
+				p229:AddVelocity((p229.isMini and 9.6 or 10.5) * p229.gravity, -v276, v276, true, true)
+				p229.jumpsInRow = p229.jumpsInRow + 1
+				local v277 = p229.level_ptr
+				v277.jumps = v277.jumps + 1
+			elseif not p229.jumping then
+				p229.jumpsInRow = 0
+			end
+		elseif p229.gamemode == 5 then
+			local v278 = p229.isMini and 2 or 1
+			local v279 = p229.velocityX * v278
+			if p229.jumping then
+				v279 = v279 * -1
+				p229.jumpsInRow = p229.jumpsInRow + 1
+			else
+				p229.jumpsInRow = 0
+			end
+			p229:AddVelocity(v279 * -p229.gravity, (-1 / 0), (1 / 0), true, false)
+		elseif p229.gamemode == 6 then
+			p229:AddVelocity(-88.044 * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -28.571, 28.571, false, true)
+			if p229.robotGravityWhenInit ~= p229.gravity then
+				p229.jumping = false
+				p229.robotGravityWhenInit = p229.gravity
+			end
+			if p229.grounded and (p229.jumping and (p229.jumpsInRow < 1 or not p229.square_trigs_touched.TriggerJ)) then
+				p229.robotGravityWhenInit = p229.gravity
+				p229.didRobotInitiate = true
+				p229.didJump = true
+				p229.jumpsInRow = p229.jumpsInRow + 1
+				local v280 = p229.level_ptr
+				v280.jumps = v280.jumps + 1
+			elseif not p229.jumping then
+				p229.didRobotInitiate = false
+				p229.didJump = false
+				p229.jumpsInRow = 0
+			end
+			if p229.didRobotInitiate then
+				if p229.jumpTimeElapsed >= 0.275 then
+					p229.didRobotInitiate = false
+					p229.didJump = false
+				else
+					p229:AddVelocity((p229.isMini and 0.8 or 1) * 10.2761348898 * p229.gravity, -28.571, 28.571, true, true)
+				end
+			end
+		elseif p229.gamemode == 7 then
+			p229:AddVelocity(-59.244 * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -27.571, 27.571, false, true)
+			if p229.jumping and (p229.grounded and p229.jumpsInRow == 0) then
+				p229:SpiderJumpInDirection(Vector3.new(0, 1, 0) * p229.gravity)
+				p229.jumpsInRow = p229.jumpsInRow + 1
+				local v281 = p229.level_ptr
+				v281.jumps = v281.jumps + 1
+			elseif not p229.jumping then
+				p229.jumpsInRow = 0
+			end
+			if p229.velocityY * p229.gravity < 0 then
+				p229.didJump = false
+			end
+		elseif p229.gamemode == 8 then
+			local v282 = -37.92
+			if p229.isMini then
+				v282 = v282 * 1.666666
+			end
+			p229:AddVelocity(v282 * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -13.434846519733332, 13.434846519733332, false, true)
+			if p229.jumping and p229.jumpsInRow == 0 then
+				p229:SetGravity(-p229.gravity)
+				p229.velocityY = p229.velocityY * 0.84
+				p229.jumpsInRow = p229.jumpsInRow + 1
+				local v283 = p229.level_ptr
+				v283.jumps = v283.jumps + 1
+			elseif not p229.jumping then
+				p229.jumpsInRow = 0
+			end
+		end
+		goto l22
+	end
+	p229:AddVelocity(-89.28 * p229.level_ptr.tick_rate * p229.gravity * p229.gravityScalar, -28.571, 28.571, false, true)
+	if p229.grounded then
+		local v284 = p229.rotation
+		local v285 = (p229.rotation + v232) / 90
+		p229.rotation = v284 + (math.round(v285) * 90 - v232 - p229.rotation) * 0.2
+		p229.rotationVelocity = 0
+	end
+	if p229.jumping and (p229.grounded and (p229.jumpsInRow < 1 or not p229.square_trigs_touched.TriggerJ)) then
+		local v286 = p229.isMini and 15.5432 or 19.429
+		local v287 = p229.steepness * p229.velocityX
+		local v288 = math.sign(v287) ~= p229.gravity and 0 or v287 * 0.2
+		p229:AddVelocity(v286 * p229.gravity + v288, -28.571, 28.571, true, true)
+		p229.jumpsInRow = p229.jumpsInRow + 1
+		local v289 = p229.level_ptr
+		v289.jumps = v289.jumps + 1
+	elseif not p229.jumping then
+		p229.jumpsInRow = 0
+	end
+	local v290 = p229.rotationVelocity
+	if math.abs(v290) <= 0.01 and not p229.grounded then
+		if p229.lastSteepness ~= 0 then
+			local v291 = p229.lastSteepness
+			if math.sign(v291) == p229.gravity and not p229.jumping then
+				local v292 = p229.isMini and 200 or 150
+				local v293 = p229.lastSteepness
+				p229.rotationVelocity = v292 * -math.clamp(v293, 1, 4) * p229.gravityScalar
+				goto l22
+			end
+		end
+		p229.rotationVelocity = (p229.isMini and 553.8461333333332 or 415.3846) * p229.gravity * p229.gravityScalar
+		goto l22
+	else
+		::l22::
+		if p229.grounded then
+			local v294 = (p229.gamemode == 1 or (p229.gamemode == 3 or p229.gamemode == 6)) and true or p229.gamemode == 7
+			local v295 = (p229.gamemode == 2 or p229.gamemode == 4) and true or p229.gamemode == 8
+			local v296
+			if v294 then
+				v296 = p229.level_ptr.particle_frequency
+			else
+				local v297 = p229.level_ptr.particle_frequency * 0.334
+				v296 = math.ceil(v297)
+			end
+			if (v294 or v295) and (not p229.hidden and p229.level_ptr.ticks % v296 == 0) then
+				local v298 = p229.level_ptr.time_elapsed * 50
+				local v299 = math.sin(v298)
+				local v300 = v298 * 2
+				local v301 = math.cos(v300)
+				if v294 then
+					local v302 = v299 * 0.0334
+					local v303 = v301 * 0.1667
+					p229.object_ptr.Particles.dragEffect.ParticleEmitter:Emit(1)
+					p229.object_ptr.Particles.dragEffect.ParticleEmitter.Acceleration = Vector3.new(-0, -10, -0) * p229.gravity
+					local v304 = p229.object_ptr.Particles.dragEffect
+					local v305 = v303 + -0.33330000000000004
+					v304.Position = Vector3.new(v302, v305, 0) * v233
+					return
+				end
+				if v295 then
+					local v306 = v299 * 0.3
+					local v307 = v301 * 0.0334
+					p229.object_ptr.Particles.shipDragEffect.ParticleEmitter:Emit(1)
+					local v308 = p229.object_ptr.Particles.shipDragEffect.ParticleEmitter
+					local v309 = -10 * p229.gravity
+					v308.Acceleration = Vector3.new(-11.667, v309, 0)
+					local v310 = p229.object_ptr.Particles.shipDragEffect
+					local v311 = v307 + -0.4666
+					v310.Position = Vector3.new(v306, v311, 0) * v233
+				end
+			end
+		end
+		return
+	end
+end
+function v_u_13.TickInput(p312)
+	if p312.jumpedDuringFrame then
+		return
+	else
+		local v313 = not p312:TickSpecialRotation()
+		if p312.isDashing then
+			if v313 then
+				p312.rotationVelocity = 1200 * p312.gravity
+			end
+			p312.velocityY = p312.dashVelocityY * p312.velocityX
+			p312.didJump = false
+		else
+			p312:TickGamemodeMovement()
+		end
+	end
+end
+function v_u_13.TickParticles(p314)
+	local v315 = p314.dashVelocityY
+	local v316 = math.atan2(v315, 1)
+	local v317 = math.deg(v316)
+	local v318 = p314.isMini and 0.6 or 1
+	if p314.gamemode == 5 then
+		local v319 = p314.level_ptr:GetAudioScale() * v318 * 0.2
+		p314.dart_trailA:SetWidth(v319 + 0.15)
+		p314.dart_trailA:AddPoint(p314.position)
+		p314.dart_trailB:AddPoint(p314.position)
+	elseif p314.gamemode == 6 then
+		local v320 = p314.level_ptr.particleManager.particles[p314.fire_particles[1]]
+		local v321 = p314.position
+		local v322 = 0.6 * p314.gravity
+		v320.position = v321 - Vector3.new(0.25, v322, 0) * v318
+		v320.rotation = -90 + 75 * p314.gravity
+		if p314.didRobotInitiate then
+			v320.scaling = v320.scaling:Lerp(Vector2.one * 0.5, 0.05)
+			if not p314.hidden then
+				local v323 = p314.level_ptr.ticks
+				local v324 = p314.level_ptr.particle_frequency * 0.5
+				if v323 % math.ceil(v324) == 0 then
+					p314.object_ptr.Particles.robotFireBoost.Boost.Acceleration = Vector3.new(0, 1, 0) * p314.gravity
+					p314.object_ptr.Particles.robotFireBoost.Boost:Emit(5)
+				end
+			end
+		else
+			v320.scaling = v320.scaling:Lerp(Vector2.zero, 0.05)
+		end
+	elseif p314.gamemode == 8 then
+		for v325 = 1, 3 do
+			local v326 = p314.level_ptr.particleManager.particles[p314.fire_particles[v325]]
+			if v326 then
+				local v327 = (v325 - 2) * 50 + -90 + p314.rotation
+				local v328 = math.rad(v327)
+				local v329 = Vector2.new(math.sin(v328), -math.cos(v328))
+				local v330 = p314.position
+				local v331 = v329.X
+				local v332 = v329.Y
+				v326.position = v330 + Vector3.new(v331, v332, 0) * 0.75 * v318
+				v326.rotation = v327
+				if v325 == 2 or v325 == 2 - p314.gravity then
+					v326.scaling = v326.scaling:Lerp(Vector2.one * 0.5, 0.05)
+				else
+					v326.scaling = v326.scaling:Lerp(Vector2.zero, 0.05)
+				end
+			end
+		end
+	end
+	for _, v333 in p314.dash_particles do
+		local v334 = p314.level_ptr.particleManager.particles[v333]
+		v334.scaling = Vector2.one * v318 * 1.2
+		v334.position = p314.position
+		v334.rotation = v317
+	end
+	local v335 = p314.object_ptr.Trails.Trail
+	local v336
+	if (p314.trailEnabled or (p314.trailAlwaysActive or (p314.gamemode == 4 or p314.gamemode == 8))) and (p314.gamemode ~= 2 and p314.gamemode ~= 5) then
+		v336 = not p314.hidden
+	else
+		v336 = false
+	end
+	v335.Enabled = v336
+	local v337 = p314.object_ptr.Trails.ShipTrail
+	local v338
+	if p314.gamemode == 2 then
+		v338 = not p314.hidden
+	else
+		v338 = false
+	end
+	v337.Enabled = v338
+	if p314.ghostTrailEnabled then
+		local v339 = p314.level_ptr.ticks
+		local v340 = p314.level_ptr.particle_frequency * 1.5
+		if v339 % math.ceil(v340) == 0 then
+			local v341 = p314.object_ptr.Particles.GhostTrail[p314.gamemode]
+			v341.Rotation = NumberRange.new(p314.rotation)
+			v341.Size = NumberSequence.new(v318 * 0.5, v318 * 0.25)
+			v341:Emit(1)
+		end
+	end
+end
+function v_u_13.TickChecks(p342)
+	local v343 = p342.isMini and 0.6 or 1
+	if not p342.hidden and (p342.grounded and not p342.lastGrounded) then
+		p342.object_ptr.Particles.landEffect.ParticleEmitter.Acceleration = Vector3.new(-0, -16.666, -0) * p342.gravity
+		local v344 = p342.level_ptr.time_elapsed * 50
+		for v345 = 1, 10 do
+			local v346 = v344 + v345
+			local v347 = math.sin(v346) * 0.00334
+			p342.object_ptr.Particles.landEffect.ParticleEmitter:Emit(1)
+			p342.object_ptr.Particles.landEffect.Position = Vector3.new(v347, -0.5, 0) * v343
+		end
+		p342.trailEnabled = false
+		p342.jumpTimeElapsed = 0
+	end
+	if p342.grounded then
+		p342.gravityWhenGrounded = p342.gravity
+	end
+	p342.animationStateManager:UpdateState(true, p342.didJump, not p342.grounded or p342.isDashing)
+end
+function v_u_13.TickMovement(p348)
+	local v349 = p348.steepness
+	local v350 = math.atan2(v349, 1)
+	local v351 = -math.deg(v350)
+	p348.rotation = p348.rotation - p348.rotationVelocity * p348.level_ptr.tick_rate * p348.level_ptr.time_scale
+	p348.rotation = p348.rotation % 360
+	local v352 = p348.position
+	local v353 = p348.velocityX
+	local v354 = p348.velocityY
+	p348.position = v352 + Vector3.new(v353, v354, 0) * p348.level_ptr.tick_rate * p348.level_ptr.time_scale
+	local v355 = p348.object_ptr
+	local v356 = CFrame.new(p348.position)
+	local v357 = CFrame.Angles
+	local v358 = p348.rotation
+	v355.CFrame = v356 * v357(0, 0, (math.rad(v358)))
+	local v359 = p348.object_ptr.Particles
+	local v360 = CFrame.Angles
+	local v361 = -p348.rotation - v351
+	v359.CFrame = v360(0, 0, (math.rad(v361)))
+	local v362 = p348.object_ptr.Particles.ShipTrail
+	local v363 = CFrame.Angles
+	local v364 = p348.rotation
+	v362.CFrame = v363(0, 0, (math.rad(v364) + math.rad(v351)) * p348.gravity)
+	if p348.gravity < 0 then
+		p348.object_ptr.Particles.CFrame = CFrame.fromMatrix(p348.object_ptr.Particles.CFrame.Position, p348.object_ptr.Particles.CFrame.XVector, -p348.object_ptr.Particles.CFrame.YVector, p348.object_ptr.Particles.CFrame.ZVector)
+	end
+end
+function v_u_13.Tick(p365)
+	if p365.jumping == false and p365.isDashing then
+		p365:StopDash()
+	end
+	p365:TickCollision(true)
+	if p365.playerId ~= nil then
+		p365:TickInput()
+		p365.lastSteepness = p365.steepness
+		p365.lastGrounded = p365.grounded
+		p365:TickCollision(false, true)
+		p365:TickMovement()
+		p365:TickCollision(false)
+		p365:TickParticles()
+		p365.animator:TickAnimations(p365.level_ptr.tick_rate * p365.level_ptr.time_scale)
+		p365:TickChecks()
+		p365.jumpTimeElapsed = not p365.jumping and 0 or p365.jumpTimeElapsed + p365.level_ptr.tick_rate * p365.level_ptr.time_scale
+		if p365.position.Y >= p365.level_ptr.level_death_Y + 2.6 then
+			p365:Die()
+		end
+	end
+end
+function v_u_13.Destroy(p366)
+	if p366.object_ptr then
+		p366.object_ptr:Destroy()
+	end
+	for _, v367 in p366.dash_particles do
+		p366.level_ptr.particleManager:RemoveParticle(v367)
+	end
+	for _, v368 in p366.fire_particles do
+		p366.level_ptr.particleManager:RemoveParticle(v368)
+	end
+	p366.dart_trailA:Destroy()
+	p366.dart_trailB:Destroy()
+	p366.icon_system:Destroy()
+	p366.animator:Destroy()
+	table.clear(p366)
+end
+return v_u_13
+local v_u_1 = game:GetService("TweenService")
+local v2 = game:GetService("ReplicatedStorage").Shared
+require(v2.Classes.Level.Physics)
+local v_u_3 = {}
+v_u_3.__index = v_u_3
+function v_u_3.syncGravity(p4)
+	if p4.level_ptr.levelSettings.gravLinked then
+		local v5 = p4.level_ptr:GetOtherPlayer(p4.playerId)
+		if v5 then
+			v5:SetGravity(-p4.gravity)
+		end
+	end
+end
+function v_u_3.touchedSquareTrigger(p6, p7)
+	local v8 = p7.Parent
+	if p6.level_ptr.GameObjects[v8]:HasTag("SquareTrigger") and (v8.Name == "TriggerS" and p6.isDashing) then
+		p6:StopDash()
+	end
+end
+function v_u_3.collectCollectible(p9, p10)
+	local v11 = p10.Parent
+	local v12 = p9.level_ptr.GameObjects[v11]
+	if v11.Name == "SecretCoin" then
+		local v13 = v12:GetValue("coin_id")
+		if v13 and (v13 >= 1 and v13 <= 3) then
+			local v14 = p9.level_ptr.collected_coins
+			table.insert(v14, v13)
+		end
+	end
+	v12:SetValue("velocityX", math.random(-40, 40) * 0.1)
+	v12:SetValue("velocityY", 7)
+	v12:SetValue("gravity", 35)
+	v11.hitEffect.ParticleEmitter:Emit(1)
+	v12:AddTag("is_collected")
+end
+function v_u_3.touchedHitboxWithSmall(p15, p16)
+	local v17 = p16.Parent
+	local v18 = p15.level_ptr.GameObjects[v17]
+	if not v18:HasTag("Destructible") then
+		return false
+	end
+	v17.hitEffect:Emit(20)
+	v17.SurfaceGui.Enabled = false
+	if v18:HasTag("HasBackside") then
+		v17.BackSurfaceGui.Enabled = false
+	end
+	v18:AddTag("is_destroyed")
+	return true
+end
+function v_u_3.touchedHitbox(p19, p20)
+	-- upvalues: (copy) v_u_3, (copy) v_u_1
+	local v_u_21 = p20.Parent
+	local v_u_22 = p19.level_ptr.GameObjects[v_u_21]
+	local v23 = v_u_22.rotation % 360
+	local v24 = math.rad(v23)
+	local v25 = "is_activated_" .. p19.playerId
+	local v26 = "is_touched_" .. p19.playerId
+	if v_u_22:HasTag("Trigger") then
+		p19.level_ptr:TouchedTrigger(p19.playerId, v_u_21)
+	end
+	if v_u_22:HasTag("Collectible") and not v_u_22:HasTag("is_collected") then
+		v_u_3.collectCollectible(p19, p20)
+	end
+	if v_u_22:HasTag("ForceBlock") then
+		local v27 = v_u_22.triggerData.force
+		if v_u_22.triggerData.range then
+			local v28 = (p19.position.Y - v_u_22.position.Y) / (v_u_22.scaleY * 0.5)
+			local v29 = math.clamp(v28, -1, 1) * 0.5 + 0.5
+			local v30 = v_u_22.triggerData.maxforce
+			local v31 = v_u_22.triggerData.force
+			v27 = math.lerp(v30, v31, v29)
+		end
+		local v32
+		if v_u_22.triggerData.relative then
+			v32 = v27 * ((p19.position.Y - v_u_22.position.Y) / 0.6 / ((v_u_22.scaleY - 1) * 0.4 + 1))
+		else
+			v32 = v27 * math.cos(v24)
+		end
+		p19.velocityY = p19.velocityY + v32 * 96 * p19.level_ptr.tick_rate * p19.level_ptr.time_scale
+	end
+	if v_u_22:HasTag("Orb") then
+		if v_u_22:GetSpecialValue("multi") and (v_u_22:HasTag(v25) and (not p19.jumping or p19.level_ptr.ticks - (v_u_22:GetValue("lastTouchedTick") or 0) > 1)) then
+			v_u_22:RemoveTag(v25)
+		end
+		v_u_22:SetValue("lastTouchedTick", p19.level_ptr.ticks)
+		if p19.jumping and (p19.jumpsInRow == 0 and not v_u_22:HasTag(v25)) then
+			if v_u_21.Name == "OrbPink" then
+				local v33 = 1
+				local v34
+				if p19.gamemode == 1 then
+					v34 = p19.isMini and 0.75 or 1.01
+				elseif p19.gamemode == 2 then
+					v34 = p19.isMini and 0.67 or 0.72
+				elseif p19.gamemode == 3 then
+					v34 = p19.isMini and 0.71 or 0.84
+				elseif p19.gamemode == 4 then
+					v34 = p19.isMini and 0.4 or 0.57
+				elseif p19.gamemode == 6 then
+					v34 = p19.isMini and 0.84 or 1.11
+				elseif p19.gamemode == 7 then
+					v34 = p19.isMini and 0.61 or 0.7
+				else
+					v34 = p19.gamemode == 8 and (p19.isMini and 0.5 or 0.65) or v33
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v34
+				p19.velocityY = 13.259601895734598 * p19.gravity * v34
+			elseif v_u_21.Name == "OrbYellow" then
+				local v35 = 1
+				local v36
+				if p19.gamemode == 1 then
+					v36 = p19.isMini and 0.82 or 1.04
+				elseif p19.gamemode == 2 then
+					v36 = p19.isMini and 0.955 or 0.8
+				elseif p19.gamemode == 3 then
+					v36 = p19.isMini and 0.62 or 0.77
+				elseif p19.gamemode == 4 then
+					v36 = 0.67
+				elseif p19.gamemode == 6 then
+					v36 = p19.isMini and 0.79 or v35
+				elseif p19.gamemode == 7 then
+					v36 = p19.isMini and 0.61 or 0.76
+				else
+					v36 = p19.gamemode == 8 and (p19.isMini and 0.545 or 0.65) or v35
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v36
+				p19.velocityY = 18.41611374407583 * p19.gravity * v36
+			elseif v_u_21.Name == "OrbRed" then
+				local v37 = 1
+				local v38
+				if p19.gamemode == 1 then
+					v38 = p19.isMini and 0.81 or 1.02
+				elseif p19.gamemode == 2 then
+					v38 = p19.isMini and 0.795 or 0.71
+				elseif p19.gamemode == 3 then
+					v38 = p19.isMini and 0.6 or 0.72
+				elseif p19.gamemode == 4 then
+					v38 = p19.isMini and 0.63 or 0.655
+				elseif p19.gamemode == 6 then
+					v38 = p19.isMini and 0.8 or v37
+				elseif p19.gamemode == 7 then
+					v38 = p19.isMini and 0.587 or 0.725
+				else
+					v38 = p19.gamemode == 8 and (p19.isMini and 0.536 or 0.62) or v37
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v38
+				p19.velocityY = 26.176664075829382 * p19.gravity * v38
+			elseif v_u_21.Name == "OrbGravityGreen" then
+				local v39 = 1
+				local v40
+				if p19.gamemode == 1 then
+					v40 = p19.isMini and 0.81 or 1.03
+				elseif p19.gamemode == 2 then
+					v40 = p19.isMini and 0.78 or 0.85
+				elseif p19.gamemode == 3 then
+					v40 = p19.isMini and 0.6 or 0.77
+				elseif p19.gamemode == 4 then
+					v40 = 0.665
+				elseif p19.gamemode == 6 then
+					v40 = p19.isMini and 0.86 or 1.07
+				elseif p19.gamemode == 7 then
+					v40 = p19.isMini and 0.61 or 0.76
+				else
+					v40 = p19.gamemode == 8 and (p19.isMini and 0.541 or 0.62) or v39
+				end
+				p19:SetGravity(-p19.gravity)
+				p19.velocityY = 18.41611374407583 * p19.gravity * v40
+				p19.rotationVelocity = 400 * p19.gravity / v40
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+			elseif v_u_21.Name == "OrbGravity" then
+				local v41 = 1
+				local v42
+				if p19.gamemode == 1 then
+					v42 = p19.isMini and 0.75 or v41
+				else
+					v42 = p19.gamemode == 3 and 0.6 or v41
+				end
+				p19:SetGravity(-p19.gravity)
+				p19.velocityY = 9.208056872037915 * -p19.gravity * v42
+				p19.rotationVelocity = 400 * p19.gravity / v42
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+			elseif v_u_21.Name == "OrbBlack" then
+				p19.velocityY = 28.571 * -p19.gravity
+				p19.rotationVelocity = 400 * p19.gravity / (p19.isMini and 0.75 or 1)
+			elseif v_u_21.Name == "OrbSpider" then
+				local v43 = math.cos(v24)
+				local v44 = Vector3.new(0, 1, 0) * math.sign(v43)
+				local v45 = v44.Y
+				p19:SpiderJumpInDirection((math.abs(v45) <= 0.01 and Vector3.new(0, 1, 0) or v44) * v_u_22.flipY)
+			elseif v_u_21.Name == "OrbCustom" then
+				local v46 = v_u_22:GetSpecialValue("group_id")
+				local v47 = v_u_22:GetSpecialValue("activate_group")
+				local v48 = v_u_22:GetSpecialValue("claim_touch")
+				local v49 = v_u_22:GetSpecialValue("spawn_only")
+				for _, v50 in p19.level_ptr:GetObjectsWithGroupId(v46) do
+					if v49 then
+						p19.level_ptr:SpawnObject(v50)
+					elseif v47 then
+						p19.level_ptr:ActivateObject(v50)
+						p19.level_ptr:SpawnObject(v50)
+					else
+						p19.level_ptr:DeactivateObject(v50)
+					end
+				end
+				if v48 then
+					p19.jumping = false
+				end
+			elseif v_u_21.Name == "OrbTeleport" then
+				local v51 = v_u_22:GetSpecialValue("group_id")
+				local v52 = v_u_22:GetSpecialValue("save_offset")
+				local v53 = p19.level_ptr:GetObjectWhichIsGroupParent(v51)
+				if v53 then
+					local v54 = (not v52 and Vector3.new(0, 0, 0) or p19.position - v_u_22.position) + p19.level_ptr.GameObjects[v53].position
+					local v55 = p19.position.X
+					local v56 = v54.Y
+					p19.position = Vector3.new(v55, v56, 0)
+				end
+			else
+				local v57 = v_u_21.Name
+				if string.sub(v57, 1, 7) == "OrbDash" then
+					p19:StartDash(v_u_21)
+				end
+			end
+			p19.jumpsInRow = p19.jumpsInRow + 1
+			p19.jumpedDuringFrame = true
+			p19.trailEnabled = true
+			p19.didJump = true
+			v_u_22:AddTag(v25)
+			if not v_u_22:IsExtraSet("NoEffects") then
+				v_u_21.hitEffect.ParticleEmitter:Emit(1)
+			end
+		end
+		if not v_u_22:HasTag(v26) then
+			v_u_22:AddTag(v26)
+			if not v_u_22:IsExtraSet("NoEffects") then
+				v_u_21.touchEffect.ParticleEmitter:Emit(1)
+			end
+		end
+	end
+	if v_u_22:HasTag("Pad") and p19:IsRotationValidForGravity(v23, v_u_22.flipY) then
+		if v_u_22:GetSpecialValue("multi") and (v_u_22:HasTag(v25) and p19.level_ptr.ticks - (v_u_22:GetValue("lastTouchedTick") or 0) > 1) then
+			v_u_22:RemoveTag(v25)
+		end
+		v_u_22:SetValue("lastTouchedTick", p19.level_ptr.ticks)
+		if not v_u_22:HasTag(v25) then
+			if v_u_21.Name == "PadPink" then
+				local v58 = 1
+				local v59
+				if p19.gamemode == 1 then
+					v59 = p19.isMini and 0.81 or 1.04
+				elseif p19.gamemode == 2 then
+					v59 = p19.isMini and 0.43 or 0.52
+				elseif p19.gamemode == 3 then
+					v59 = p19.isMini and 0.57 or 0.7
+				elseif p19.gamemode == 4 then
+					v59 = p19.isMini and 0.44 or 0.576
+				elseif p19.gamemode == 6 then
+					v59 = p19.isMini and 0.87 or 1.1
+				elseif p19.gamemode == 7 then
+					v59 = p19.isMini and 0.55 or 0.7
+				else
+					v59 = p19.gamemode == 8 and (p19.isMini and 0.53 or 0.645) or v58
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v59
+				p19.velocityY = 17.228571428571428 * p19.gravity * v59
+			elseif v_u_21.Name == "PadYellow" then
+				local v60 = 1
+				local v61
+				if p19.gamemode == 1 then
+					v61 = p19.isMini and 0.84 or 1.055
+				elseif p19.gamemode == 2 then
+					v61 = p19.isMini and 0.585 or 0.5
+				elseif p19.gamemode == 3 then
+					v61 = p19.isMini and 0.55 or 0.67
+				elseif p19.gamemode == 4 then
+					v61 = p19.isMini and 0.51 or 0.45
+				elseif p19.gamemode == 6 then
+					v61 = p19.isMini and 0.89 or 1.11
+				elseif p19.gamemode == 7 then
+					v61 = p19.isMini and 0.53 or 0.66
+				else
+					v61 = p19.gamemode == 8 and (p19.isMini and 0.55 or 0.555) or v60
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v61
+				p19.velocityY = 26.157142857142855 * p19.gravity * v61
+			elseif v_u_21.Name == "PadRed" then
+				local v62 = 1
+				local v63
+				if p19.gamemode == 1 then
+					v63 = p19.isMini and 0.75 or 1.06
+				elseif p19.gamemode == 2 then
+					v63 = p19.isMini and 0.597 or 0.496
+				elseif p19.gamemode == 3 then
+					v63 = p19.isMini and 0.535 or 0.67
+				elseif p19.gamemode == 4 then
+					v63 = p19.isMini and 0.537 or 0.44
+				elseif p19.gamemode == 6 then
+					v63 = p19.isMini and 0.89 or 1.125
+				elseif p19.gamemode == 7 then
+					v63 = p19.isMini and 0.54 or 0.67
+				else
+					v63 = p19.gamemode == 8 and (p19.isMini and 0.482 or 0.66) or v62
+				end
+				p19.rotationVelocity = 400 * p19.gravity / v63
+				p19.velocityY = 32.71142857142857 * p19.gravity * v63
+			elseif v_u_21.Name == "PadGravity" then
+				local v64 = 1
+				local v65
+				if p19.gamemode == 1 then
+					v65 = p19.isMini and 0.85 or v64
+				elseif p19.gamemode == 2 then
+					v65 = p19.isMini and 0.7 or v64
+				elseif p19.gamemode == 3 then
+					v65 = p19.isMini and 0.5 or 0.56
+				elseif p19.gamemode == 6 then
+					v65 = p19.isMini and 0.85 or v64
+				else
+					v65 = p19.gamemode == 7 and (p19.isMini and 0.5 or 0.7) or v64
+				end
+				p19:SetGravity(-p19.gravity)
+				p19.rotationVelocity = 400 * p19.gravity * (p19.isMini and 0.75 or 1)
+				p19.velocityY = 12 * -p19.gravity * v65
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+			elseif v_u_21.Name == "PadSpider" then
+				local v66 = math.cos(v24)
+				local v67 = Vector3.new(0, 1, 0) * math.sign(v66)
+				local v68 = v67.Y
+				p19:SpiderJumpInDirection(math.abs(v68) <= 0.01 and Vector3.new(0, 1, 0) or v67)
+			end
+			p19.jumpedDuringFrame = true
+			p19.trailEnabled = true
+			p19.didJump = true
+			v_u_22:AddTag(v25)
+			if not v_u_22:IsExtraSet("NoEffects") then
+				v_u_21.hitEffect.ParticleEmitter:Emit(1)
+			end
+		end
+	end
+	if v_u_22:HasTag("Portal") then
+		if v_u_22:GetSpecialValue("multi") and (v_u_22:HasTag(v25) and p19.level_ptr.ticks - (v_u_22:GetValue("lastTouchedTick") or 0) > 1) then
+			v_u_22:RemoveTag(v25)
+		end
+		v_u_22:SetValue("lastTouchedTick", p19.level_ptr.ticks)
+		if not v_u_22:HasTag(v25) then
+			local v69 = false
+			if v_u_21.Name == "PortalBoostSlow" and p19.level_ptr.levelSettings.gameplaySpeed ~= 1 then
+				p19.level_ptr.levelSettings.gameplaySpeed = 1
+				p19:UpdateVelocityX()
+				p19.level_ptr.PlayEffect:Fire("SpeedEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalBoostNormal" and p19.level_ptr.levelSettings.gameplaySpeed ~= 2 then
+				p19.level_ptr.levelSettings.gameplaySpeed = 2
+				p19:UpdateVelocityX()
+				p19.level_ptr.PlayEffect:Fire("SpeedEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalBoostFast" and p19.level_ptr.levelSettings.gameplaySpeed ~= 3 then
+				p19.level_ptr.levelSettings.gameplaySpeed = 3
+				p19:UpdateVelocityX()
+				p19.level_ptr.PlayEffect:Fire("SpeedEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalBoostFaster" and p19.level_ptr.levelSettings.gameplaySpeed ~= 4 then
+				p19.level_ptr.levelSettings.gameplaySpeed = 4
+				p19:UpdateVelocityX()
+				p19.level_ptr.PlayEffect:Fire("SpeedEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalBoostFastest" and p19.level_ptr.levelSettings.gameplaySpeed ~= 5 then
+				p19.level_ptr.levelSettings.gameplaySpeed = 5
+				p19:UpdateVelocityX()
+				p19.level_ptr.PlayEffect:Fire("SpeedEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalMini" and not p19.isMini then
+				p19.isMini = true
+				p19.object_ptr.Size = Vector3.new(0.6, 0.6, 1)
+				v69 = true
+			elseif v_u_21.Name == "PortalNormal" and p19.isMini then
+				p19.isMini = false
+				p19.object_ptr.Size = Vector3.new(1, 1, 1)
+				v69 = true
+			elseif v_u_21.Name == "PortalNormalGravity" and p19.gravity ~= 1 then
+				p19.velocityY = p19.velocityY * 0.5
+				p19:SetGravity(1)
+				p19.trailEnabled = true
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalReverseGravity" and p19.gravity ~= -1 then
+				p19.velocityY = p19.velocityY * 0.5
+				p19:SetGravity(-1)
+				p19.trailEnabled = true
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalSwitchGravity" then
+				p19.velocityY = p19.velocityY * 0.5
+				p19:SetGravity(-p19.gravity)
+				p19.trailEnabled = true
+				v_u_3.syncGravity(p19)
+				p19.level_ptr.PlayEffect:Fire("GravityEffect")
+				v69 = true
+			elseif v_u_21.Name == "PortalDualA" then
+				if #p19.level_ptr.Players < 2 then
+					local v70 = p19.new(p19.level_ptr, p19.object_ptr:Clone())
+					v70.object_ptr.Parent = p19.object_ptr.Parent
+					v70.position = p19.position
+					v70.jumping = p19.jumping
+					v70.gamemode = p19.gamemode
+					v70.gravity = -p19.gravity
+					v70.velocityX = p19.velocityX
+					v70.velocityY = -p19.velocityY
+					v70.isMini = p19.isMini
+					v70.grounded = false
+					v70:ShowGamemode()
+					local v71 = p19.level_ptr.Players
+					table.insert(v71, v70)
+					v69 = true
+				end
+				p19.level_ptr.lastDualPositionY = v_u_21.Position.Y
+				p19.level_ptr:SetBorders(v_u_21.Position.Y, v_u_22.triggerData.gridSnapDisabled, v_u_22.triggerData.freeMode)
+			elseif v_u_21.Name == "PortalDualB" and #p19.level_ptr.Players > 1 then
+				local v72 = p19.position.Y
+				if p19.level_ptr.lastBorderParams then
+					v72 = p19.level_ptr.lastBorderParams[1]
+				end
+				if p19.playerId == 2 then
+					local v73 = p19.level_ptr:GetOtherPlayer(p19.playerId)
+					if v73 then
+						v73.position = p19.position
+					end
+					p19.level_ptr.Players[2] = nil
+					p19.level_ptr:SetBorders(v72, v_u_22.triggerData.gridSnapDisabled, v_u_22.triggerData.freeMode)
+					p19:Destroy()
+					v69 = true
+				else
+					p19.level_ptr.Players[2]:Destroy()
+					p19.level_ptr.Players[2] = nil
+					p19.level_ptr:SetBorders(v72, v_u_22.triggerData.gridSnapDisabled, v_u_22.triggerData.freeMode)
+					v69 = true
+				end
+			elseif v_u_21.Name == "PortalTeleportA" then
+				local v74 = p19.level_ptr.Linker:GetPaired(v_u_21)
+				if v74 then
+					local v75 = v74.Position.Y
+					local v76 = p19.position.X
+					p19.position = Vector3.new(v76, v75, 0)
+					v69 = true
+				end
+			else
+				local v77 = v_u_21.Name
+				if string.sub(v77, 1, 14) == "PortalGamemode" then
+					p19:TouchedGamemodePortal(v_u_21)
+				end
+			end
+			v_u_22:AddTag(v25)
+			if not v_u_22:IsExtraSet("NoEffects") then
+				if v69 then
+					v_u_21.hitEffect.ParticleEmitter:Emit(1)
+				end
+				if v_u_22:HasTag("HasShine") then
+					local v78 = TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
+					local v_u_79 = TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+					v_u_21.SurfaceGui.Shine.ImageTransparency = 1
+					v_u_1:Create(v_u_21.SurfaceGui.Shine, v78, {
+						["ImageTransparency"] = 0
+					}):Play()
+					if v_u_22:HasTag("HasBackside") then
+						v_u_21.BackSurfaceGui.Shine.ImageTransparency = 1
+						v_u_1:Create(v_u_21.BackSurfaceGui.Shine, v78, {
+							["ImageTransparency"] = 0
+						}):Play()
+					end
+					task.delay(v78.Time, function()
+						-- upvalues: (copy) v_u_21, (ref) v_u_1, (copy) v_u_79, (copy) v_u_22
+						if v_u_21:FindFirstChild("SurfaceGui") then
+							v_u_1:Create(v_u_21.SurfaceGui.Shine, v_u_79, {
+								["ImageTransparency"] = 1
+							}):Play()
+							if v_u_22:HasTag("HasBackside") then
+								v_u_1:Create(v_u_21.BackSurfaceGui.Shine, v_u_79, {
+									["ImageTransparency"] = 1
+								}):Play()
+							end
+						end
+					end)
+				end
+			end
+		end
+	end
+end
+return v_u_3
+
+local v1 = {
+	["GamemodeTypes"] = {
+		1,
+		2,
+		1,
+		1,
+		2,
+		1,
+		1,
+		2
+	}
+}
+local v2 = {
+	{ 1, 0.5 },
+	{ 0.25, 0.125 }
+}
+v1.Conversions = v2
+return v1
+
