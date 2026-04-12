@@ -10978,3 +10978,1501 @@ function init()
 end
 init()
 return v_u_1
+local v_u_1 = game:GetService("RunService")
+local v2 = game:GetService("ReplicatedStorage")
+local v3 = game:GetService("Players")
+local v_u_4 = game:GetService("GuiService")
+local v_u_5 = v3.LocalPlayer:GetMouse()
+local _ = v2.GameObjects
+local v6 = v2.Shared
+local v_u_7 = require(v6.Info.Gamemodes)
+require(v6.Info.Colors)
+local v_u_8 = require(v6.Info.AnimatedObjects)
+local v_u_9 = require(v6.Classes.Maid)
+local v_u_10 = require(v6.Utility)
+local v_u_11 = require(v6.Classes.Signal)
+local v_u_12 = require(v6.Singletons.DataManager)
+local v_u_13 = require(v2.Shared.Singletons.Networker)
+local v_u_14 = require(v6.Classes.Level.Camera)
+local v_u_15 = require(v6.Classes.Level)
+local v_u_16 = require(v6.Toolbox)
+local v_u_17 = require(v6.Classes.Level.Physics)
+local v_u_18 = require(v6.Classes.Level.Block)
+require(v6.Classes.Level.Parser)
+require(v6.Classes.Level.ZOrderFinder)
+local v_u_19 = require(v6.Classes.Level.ColorChannel)
+local v_u_20 = require(script.HistoryManager)
+local v_u_21 = {
+	["BlockScaleCommand"] = require(script.Commands.BlockScaleCommand),
+	["BlockRotateCommand"] = require(script.Commands.BlockRotateCommand),
+	["BlockMoveCommand"] = require(script.Commands.BlockMoveCommand),
+	["BlockFlipCommand"] = require(script.Commands.BlockFlipCommand),
+	["BlockDeleteCommand"] = require(script.Commands.BlockDeleteCommand),
+	["BlockPlaceCommand"] = require(script.Commands.BlockPlaceCommand),
+	["CompositeCommand"] = require(script.Commands.CompositeCommand),
+	["BlockLinkCommand"] = require(script.Commands.BlockLinkCommand),
+	["BlockUnlinkCommand"] = require(script.Commands.BlockUnlinkCommand)
+}
+local v_u_22 = {}
+v_u_22.__index = v_u_22
+function isEven(p23)
+	return math.round(p23) % 2 == 0
+end
+function v_u_22.new()
+	-- upvalues: (copy) v_u_22, (copy) v_u_14, (copy) v_u_15, (copy) v_u_9, (copy) v_u_20, (copy) v_u_11
+	local v24 = v_u_22
+	local v25 = setmetatable({}, v24)
+	v25.Camera = v_u_14.new()
+	v25.Camera:SetSmoothing(false)
+	v25.Camera:SetCameraBounds(Enum.Axis.X, true, -60, 8010)
+	v25.Camera:SetCameraBounds(Enum.Axis.Y, true, -60, 70)
+	v25.level = v_u_15.new()
+	v25.level.mgModY = 1
+	v25.level.gridEnabled = true
+	v25.level.Camera = nil
+	v25.level.hideTriggers = false
+	v25.level.__is_editor = true
+	v25.level.__is_editing = true
+	v25.maid = v_u_9.new()
+	v25.historyManager = v25.maid:GiveTask(v_u_20.new())
+	for _, v26 in v25.level.Players do
+		v26:Destroy()
+	end
+	table.clear(v25.level.Players)
+	v25.oldMousePosition = Vector2.zero
+	v25.mouseDownPosition = Vector2.zero
+	v25.mouseDown = false
+	v25.movedDuringMouseDown = Vector2.zero
+	v25.distanceTotalMovedMouseDown = 0
+	v25.swipeEnabled = false
+	v25.freemoveEnabled = false
+	v25.rotateEnabled = false
+	v25.snapEnabled = false
+	v25.selectedBrush = 0
+	v25.currentRotationOffset = 0
+	v25.editorMode = 1
+	v25.DebugLines = {}
+	v25.blocksToAddToPlaytest = {}
+	v25.selectedGameObjects = {}
+	v25.selectionBox = nil
+	v25.isPlayTesting = false
+	v25.isPlaytestPaused = false
+	v25.isMusicTesting = false
+	v25.currentEditorLayer = 0
+	v25.currentLevelPlaytest = nil
+	v25.selectableRayParams = RaycastParams.new()
+	v25.selectableRayParams.CollisionGroup = "EditorSelectable"
+	v25.portalBoundPreviews = {}
+	v25.debugobjects = {}
+	v25:CreateDebugLines()
+	v25.level:DisableEnding()
+	v25.level:ApplyLevelSettings()
+	v25.SelectionChanged = v25.maid:GiveTask(v_u_11.new())
+	v25.LinksChanged = v25.maid:GiveTask(v_u_11.new())
+	v25.EditorSettingsChanged = v25.maid:GiveTask(v_u_11.new())
+	v25.editorSettings = {
+		["ignoreDamage"] = false,
+		["showHitboxes"] = false,
+		["showGround"] = false,
+		["hideGrid"] = false,
+		["hideInvisible"] = false,
+		["previewAnimation"] = true,
+		["previewRotation"] = true,
+		["previewMode"] = true,
+		["previewParticles"] = true,
+		["linkControls"] = false,
+		["hideTriggersPlaytest"] = false,
+		["debugInfoMenu"] = false
+	}
+	v25:LoadSettings()
+	return v25
+end
+function v_u_22.LoadSettings(p27)
+	-- upvalues: (copy) v_u_12
+	local v28 = v_u_12:GetData().settings or {}
+	p27.editorSettings.ignoreDamage = v28.editor_ignore_damage
+	p27.editorSettings.showHitboxes = v28.editor_show_hitboxes
+	p27.editorSettings.showGround = v28.editor_show_ground
+	p27.editorSettings.hideGrid = v28.editor_hide_grid
+	p27.editorSettings.hideInvisible = v28.editor_hide_invisible
+	p27.editorSettings.previewAnimation = v28.editor_preview_animation
+	p27.editorSettings.previewRotation = v28.editor_preview_rotation
+	p27.editorSettings.previewMode = v28.editor_preview_mode
+	p27.editorSettings.previewParticles = v28.editor_preview_particles
+	p27.editorSettings.linkControls = v28.editor_link_controls
+	p27.editorSettings.hideTriggersPlaytest = v28.editor_hide_triggers_playtest
+	p27.editorSettings.debugInfoMenu = v28.editor_debug_menu
+	p27:UpdateEditorSettings()
+end
+function v_u_22.SaveSettings(p29)
+	-- upvalues: (copy) v_u_13
+	v_u_13:InvokeServer("UpdateSettings", {
+		["editor_ignore_damage"] = p29.editorSettings.ignoreDamage,
+		["editor_show_hitboxes"] = p29.editorSettings.showHitboxes,
+		["editor_show_ground"] = p29.editorSettings.showGround,
+		["editor_hide_grid"] = p29.editorSettings.hideGrid,
+		["editor_hide_invisible"] = p29.editorSettings.hideInvisible,
+		["editor_preview_animation"] = p29.editorSettings.previewAnimation,
+		["editor_preview_rotation"] = p29.editorSettings.previewRotation,
+		["editor_preview_mode"] = p29.editorSettings.previewMode,
+		["editor_preview_particles"] = p29.editorSettings.previewParticles,
+		["editor_link_controls"] = p29.editorSettings.linkControls,
+		["editor_hide_triggers_playtest"] = p29.editorSettings.hideTriggersPlaytest,
+		["editor_debug_menu"] = p29.editorSettings.debugInfoMenu
+	})
+end
+function v_u_22.UpdateEditorSettings(p30)
+	p30.level.gridEnabled = not p30.editorSettings.hideGrid
+	p30.level.groundEnabled = p30.editorSettings.showGround
+	p30.level:SetShowHitboxes(p30.editorSettings.showHitboxes)
+end
+function v_u_22.GetObjectCount(p31)
+	local v32 = 0
+	for _, _ in p31.level.GameObjects do
+		v32 = v32 + 1
+	end
+	return v32
+end
+function v_u_22.GetCoinAmount(p33)
+	local v34 = 0
+	for _, v35 in p33.level.GameObjects do
+		if v35.toolbox_id == 153 then
+			v34 = v34 + 1
+		end
+	end
+	return v34
+end
+function v_u_22.UpdatePortalGamemodePreview(p36, p37)
+	-- upvalues: (copy) v_u_7
+	local v38 = p36.portalBoundPreviews[p37]
+	if v38 then
+		local v39 = p36:GetObjectData(p37)
+		local v40 = p37.Name
+		local v41 = string.sub(v40, 15)
+		local _, _, v42, v43 = p36.level:GetAdjustedBorders(p37.Position.Y, v39:GetTriggerValue("gridSnapDisabled"), false, false, table.find(v_u_7, string.lower(v41)) or 2, 1, 1)
+		local v44 = v38.top_line
+		local v45 = p36.Camera:GetCameraX()
+		local v46 = v43 - 2.1
+		v44.Position = Vector3.new(v45, v46, 0)
+		local v47 = v38.bottom_line
+		local v48 = p36.Camera:GetCameraX()
+		local v49 = v42 + 2.1
+		v47.Position = Vector3.new(v48, v49, 0)
+	end
+end
+function v_u_22.CreateDebugLine(p50, p51, p52, p53, p54)
+	-- upvalues: (copy) v_u_10
+	while p50.debugobjects[p54] ~= nil do
+		p54 = v_u_10:IncrementName(p54)
+	end
+	local v55 = Instance.new("Part", p50.level.Folder.Immutable)
+	v55.Position = p51
+	v55.Size = p52
+	v55.Color = p53
+	v55.Name = p54 or "Line"
+	v55.Anchored = true
+	v55.CanCollide = false
+	v55.CanQuery = false
+	v55.CanTouch = false
+	local v56 = Instance.new("SurfaceGui", v55)
+	v56.Face = Enum.NormalId.Back
+	v56.ZOffset = 999
+	local v57 = Instance.new("Frame", v56)
+	v57.Size = UDim2.fromScale(1, 1)
+	v57.Position = UDim2.fromScale(0.5, 0.5)
+	v57.AnchorPoint = Vector2.one * 0.5
+	v57.BackgroundColor3 = p53
+	v57.BorderSizePixel = 0
+	p50.debugobjects[p54] = v55
+	return v55
+end
+function v_u_22.DestroyDebugLine(p58, p59)
+	if p58.debugobjects[p59] then
+		p58.debugobjects[p59]:Destroy()
+		p58.debugobjects[p59] = nil
+	end
+end
+function v_u_22.CreateDebugLines(p60)
+	p60:CreateDebugLine(Vector3.new(-0.5, 0, 0), Vector3.new(0.03, 2048, 1), Color3.new(1, 1, 1), "StartingLine")
+	p60:CreateDebugLine(Vector3.new(0, -0.5, 0), Vector3.new(2048, 0.03, 1), Color3.new(1, 1, 1), "GroundLine")
+end
+function v_u_22.Get2dWorldPositionFromPixelCoordinates(p61, p62, p63)
+	-- upvalues: (copy) v_u_4
+	local v64 = workspace.CurrentCamera.ViewportSize.Y - (p63 + v_u_4:GetGuiInset().Y)
+	local v65, v66 = p61.Camera:GetBounds()
+	local v67 = p61.Camera:GetCameraX() - v65
+	local v68 = p61.Camera:GetCameraY() - v66
+	local v69 = Vector3.new(v67, v68)
+	local v70 = Vector3.new(v65, v66, 0) * 2
+	local v71 = Vector3.new(p62, v64, 0)
+	local v72 = workspace.CurrentCamera.ViewportSize.X
+	local v73 = workspace.CurrentCamera.ViewportSize.Y
+	return v69 + v70 * (v71 / Vector3.new(v72, v73, 1))
+end
+function v_u_22.GetScaleBounds(_)
+	return 0.5, 2
+end
+function v_u_22.PlaceBlock(p74, p75, p76)
+	-- upvalues: (copy) v_u_18, (copy) v_u_21
+	if p74.isPlayTesting then
+		return
+	elseif p75 == 153 and p74:GetCoinAmount() >= 3 then
+		return
+	elseif v_u_18:GetPhysicalBlockFromToolboxId(p74.selectedBrush) then
+		for _, v77 in workspace:GetPartBoundsInBox(p76, Vector3.new(1, 1, 1)) do
+			local v78 = p74:GetObjectData(v77)
+			if v78 and (v78.toolbox_id == p75 and (p76.Position - v78.position).Magnitude <= 0.01) then
+				return
+			end
+		end
+		p74.historyManager:PerformCommand(v_u_21.BlockPlaceCommand.new(p74, p74.currentEditorLayer, p74.currentRotationOffset, p75, p76))
+	end
+end
+function v_u_22.PlaceBlockAtMousePosition(p79)
+	-- upvalues: (copy) v_u_5, (copy) v_u_18
+	local v80 = p79:Get2dWorldPositionFromPixelCoordinates(v_u_5.X, v_u_5.Y)
+	local v81 = v80.X
+	local v82 = math.round(v81)
+	local v83 = v80.Y
+	local v84 = math.round(v83)
+	local v85 = Vector3.new(v82, v84, 0)
+	local v86 = v_u_18:GetPhysicalBlockFromToolboxId(p79.selectedBrush)
+	if v86 then
+		local v87 = v86.Position
+		local v88 = p79.selectedBrush
+		local v89 = CFrame.Angles
+		local v90 = p79.currentRotationOffset
+		p79:PlaceBlock(v88, v89(0, 0, (math.rad(v90))) * CFrame.new(v87) + v85)
+	end
+end
+function v_u_22.RaycastToMousePosition(p91)
+	-- upvalues: (copy) v_u_5
+	local v92 = p91:Get2dWorldPositionFromPixelCoordinates(v_u_5.X, v_u_5.Y)
+	local v93 = workspace.CurrentCamera.CFrame.Position
+	local v94 = v92 - v93
+	local v95 = workspace:Raycast(v93, v94, p91.selectableRayParams)
+	local v96 = {
+		["Instance"] = nil,
+		["Position"] = Vector3.new(0, 0, 0)
+	}
+	if v95 then
+		local v97
+		if v95.Instance:HasTag("Hitbox") then
+			v97 = v95.Instance.Parent
+		else
+			v97 = v95.Instance
+		end
+		v96.Instance = v97
+		v96.Position = v95.Position
+	end
+	return v96
+end
+function v_u_22.GetPreviewLevelSettingsAt(p98, p99)
+	-- upvalues: (copy) v_u_10, (copy) v_u_16, (copy) v_u_17
+	debug.profilebegin("[EDITOR] Preview Mode Update")
+	local v100 = v_u_10:CloneTable(p98.level.levelSettings)
+	local v101 = {}
+	local v102 = { "ColorTrigger", "PulseTrigger" }
+	for v103, v104 in p98.level.GameObjects do
+		if v104:HasTag("BoostPortal") and v104.position.X < p99 then
+			local v105 = v_u_16.idIndexed[v104.toolbox_id]
+			local v106 = v105 == "PortalBoostSlow" and 1 or (v105 == "PortalBoostNormal" and 2 or (v105 == "PortalBoostFast" and 3 or (v105 == "PortalBoostFaster" and 4 or (v105 == "PortalBoostFastest" and 5 or nil))))
+			local v107 = {
+				["posX"] = v103.Position.X,
+				["speedIndex"] = v106
+			}
+			table.insert(v101, v107)
+		end
+	end
+	table.sort(v101, function(p108, p109)
+		return p108.posX < p109.posX
+	end)
+	local v110 = {}
+	for v111, v112 in p98.level.GameObjects do
+		local v113 = v_u_16.idIndexed[v112.toolbox_id]
+		local v114 = table.find(v102, v113)
+		if v114 and not (v112:GetTriggerValue("touch") or v112:GetTriggerValue("spawn")) then
+			local v115 = p99 - v111.Position.X
+			if v115 >= 0 then
+				local v116 = v100.gameplaySpeed
+				for _, v117 in v101 do
+					if v117.posX < v111.Position.X then
+						v116 = v117.speedIndex
+					end
+				end
+				local v118 = {
+					["trigIndex"] = v114,
+					["t"] = v115 / v_u_17.Speeds[v116],
+					["posX"] = v111.Position.X,
+					["objData"] = v112
+				}
+				table.insert(v110, v118)
+			end
+		end
+	end
+	table.sort(v110, function(p119, p120)
+		return p119.posX < p120.posX
+	end)
+	for _, v121 in v110 do
+		local v122 = v121.trigIndex
+		local v123 = v121.t
+		if v122 == 1 or v122 == 2 then
+			local v124 = v121.objData:GetTriggerValue("id")
+			local v125 = p98.level:GetColorChannel(v124, v100)
+			if v125 then
+				local v126 = p98.level:ResolveColorFromChannel(v125, v100)
+				local v127 = p98.level:ResolveOpacityFromChannel(v125, v100)
+				local v128 = false
+				local v129, v130, v131
+				if v122 == 2 then
+					v129 = v125.copy_color
+					v130 = v125.pcol1
+					v131 = v125.pcol2
+				else
+					v129 = nil
+					v130 = nil
+					v131 = nil
+				end
+				p98.level:SetColorChannelData(v124, "copy_color", false, v100)
+				p98.level:SetColorChannelData(v124, "pcol1", false, v100)
+				p98.level:SetColorChannelData(v124, "pcol2", false, v100)
+				if v122 == 1 then
+					p98.level:SetColorChannelData(v124, "blending", v121.objData:GetTriggerValue("blending"), v100)
+					p98.level:SetColorChannelData(v124, "copy_opacity", false, v100)
+				end
+				local v132
+				if v122 == 1 then
+					v132 = v123 / v121.objData:GetTriggerValue("duration")
+					if v132 >= 1 then
+						v128 = true
+					end
+				else
+					local v133 = v121.objData:GetTriggerValue("fadein")
+					local v134 = v121.objData:GetTriggerValue("hold")
+					local v135 = v121.objData:GetTriggerValue("fadeout")
+					if v123 <= v133 then
+						v132 = v123 / v133
+					elseif v123 <= v134 + v133 then
+						v132 = 1
+					else
+						v132 = 1 - (v123 - (v133 + v134)) / v135
+						if v132 <= 0 then
+							v128 = true
+						end
+					end
+				end
+				local v136 = math.clamp(v132, 0, 1)
+				local v137 = p98.level:ResolveColorFromChannel(v121.objData.triggerData, v100, nil, false)
+				p98.level:SetColorChannelData(v124, "color", v126:Lerp(v137, v136), v100)
+				if v122 == 1 then
+					local v138 = p98.level:ResolveOpacityFromChannel(v121.objData.triggerData, v100)
+					p98.level:SetColorChannelData(v124, "opacity", math.lerp(v127, v138, v136), v100)
+				end
+				if v128 then
+					if v122 == 1 then
+						p98.level:SetColorChannelData(v124, "copy_color", v121.objData:GetTriggerValue("copy_color"), v100)
+						p98.level:SetColorChannelData(v124, "pcol1", v121.objData:GetTriggerValue("pcol1"), v100)
+						p98.level:SetColorChannelData(v124, "pcol2", v121.objData:GetTriggerValue("pcol2"), v100)
+						p98.level:SetColorChannelData(v124, "copy_opacity", v121.objData:GetTriggerValue("copy_opacity"), v100)
+						p98.level:SetColorChannelData(v124, "copy_channel_id", v121.objData:GetTriggerValue("copy_channel_id"), v100)
+						p98.level:SetColorChannelData(v124, "hue", v121.objData:GetTriggerValue("hue"), v100)
+						p98.level:SetColorChannelData(v124, "saturation", v121.objData:GetTriggerValue("saturation"), v100)
+						p98.level:SetColorChannelData(v124, "brightness", v121.objData:GetTriggerValue("brightness"), v100)
+					else
+						p98.level:SetColorChannelData(v124, "copy_color", v129, v100)
+						p98.level:SetColorChannelData(v124, "pcol1", v130, v100)
+						p98.level:SetColorChannelData(v124, "pcol2", v131, v100)
+					end
+				end
+			end
+		end
+	end
+	debug.profileend()
+	return v100
+end
+function v_u_22.UpdateOnScreenObjects(p139, p140, p141)
+	-- upvalues: (copy) v_u_8, (copy) v_u_19
+	debug.profilebegin("[EDITOR] On Screen Update")
+	local v142 = p141 or p139.level.levelSettings
+	local v143 = p139.Camera:GetObjectsOnScreen()
+	local v144 = {}
+	for _, v145 in v143 do
+		local v146 = p139:GetObjectData(v145)
+		if v146 then
+			if v144[v146.basecolor_id] == nil then
+				local v147 = p139.level:GetColorChannel(v146.basecolor_id, v142)
+				v144[v146.basecolor_id] = {
+					["color"] = p139.level:ResolveColorFromChannel(v147, v142),
+					["opacity"] = p139.level:ResolveOpacityFromChannel(v147, v142)
+				}
+			end
+			if v144[v146.detailcolor_id] == nil then
+				local v148 = p139.level:GetColorChannel(v146.detailcolor_id, v142)
+				v144[v146.detailcolor_id] = {
+					["color"] = p139.level:ResolveColorFromChannel(v148, v142),
+					["opacity"] = p139.level:ResolveOpacityFromChannel(v148, v142)
+				}
+			end
+			local v149 = v144[v146.basecolor_id]
+			local v150 = v144[v146.detailcolor_id]
+			if v149 and v150 then
+				local v151 = v149.color
+				local v152 = v150.color
+				local v153 = v149.opacity
+				local v154 = v150.opacity
+				local v155 = 1
+				local v156 = table.find(p139.selectedGameObjects, v145)
+				local v157 = p139.editorSettings.hideInvisible and (not v156 and v146:IsExtraSet("Hide")) and 0 or 1
+				if p139.editorSettings.previewParticles and v145.Name == "ParticleTrigger" then
+					v155 = v155 * 0.5
+				end
+				if p139.currentEditorLayer == -1 or (v146.editor_layer == p139.currentEditorLayer or v146.editor_layer2 == p139.currentEditorLayer and v146.editor_layer2 > 0) then
+					v145.CollisionGroup = "EditorSelectable"
+					v145.Hitbox.CollisionGroup = "EditorNonSelectable"
+				else
+					v155 = v155 * 0.5
+					v145.CollisionGroup = "EditorNonSelectable"
+					v145.Hitbox.CollisionGroup = "EditorNonSelectable"
+				end
+				if v146:HasTag("Animated") then
+					local v158 = v_u_8[v145.Name]
+					local v159 = v158.fps
+					local v160 = v158.variations[v146:GetValue("anim_variation") or 1]
+					local v161
+					if p139.editorSettings.previewAnimation then
+						local v162 = p139.level.time_elapsed * v159
+						v161 = math.floor(v162) % #v160.data.frames + 1
+					else
+						v161 = 1
+					end
+					if (v146:GetValue("anim_frame") or 1) ~= v161 then
+						v146:SetValue("anim_frame", v161)
+						p139.level:FlipObject(v145, v146.flipX, v146.flipY)
+					end
+				end
+				if p139.editorSettings.previewRotation and v146:HasTag("Rotating") then
+					local v163 = v146:GetSpecialValue("rotation_speed")
+					p139.level:SetImageData(v145, "Rotation", p139.level.time_elapsed * v163 % 360, true, true)
+				end
+				if v146:HasTag("Trigger") and v145.Name == "StopTrigger" then
+					local v164 = v146:GetTriggerValue("action")
+					if v164 == 1 then
+						v145.SurfaceGui.Base.Image = "rbxassetid://71841155782739"
+					elseif v164 == 2 then
+						v145.SurfaceGui.Base.Image = "rbxassetid://125591827705058"
+					else
+						v145.SurfaceGui.Base.Image = "rbxassetid://129489744693523"
+					end
+				end
+				if v156 then
+					v151 = Color3.fromRGB(51, 255, 51)
+					v152 = v151
+				elseif v145.Name == "SecretCoin" then
+					v151 = Color3.new(1, 1, 1)
+					v152 = v151
+				elseif v146:HasTag("Trigger") and v145.Name ~= "ParticleTrigger" then
+					v151 = Color3.new(1, 1, 1)
+					if v145.Name == "ToggleTrigger" then
+						if v146:GetTriggerValue("activate_group") then
+							v152 = Color3.fromHex("00ff7f")
+						else
+							v152 = Color3.fromHex("ff3f3f")
+						end
+					else
+						v152 = v151
+					end
+				end
+				if v146:HasTag("Trigger") then
+					if v146:GetTriggerValue("group_id") == nil then
+						if v146:GetTriggerValue("id") ~= nil then
+							local v165 = v146:GetTriggerValue("id")
+							v145.SurfaceGui.GroupIdView.Text = v_u_19:ResolveChannelId(v165) or v165
+						end
+					else
+						v145.SurfaceGui.GroupIdView.Text = v146:GetTriggerValue("group_id")
+					end
+				end
+				if p139.editorSettings.showHitboxes then
+					p139.level:UpdateHitbox(v145)
+				end
+				p139.level:SetImageData(v145, "ImageColor3", v151, true, false)
+				p139.level:SetImageData(v145, "ImageColor3", v152, false, true)
+				p139.level:SetImageData(v145, "ImageTransparency", 1 - v157 * v155 * v153, true, false)
+				p139.level:SetImageData(v145, "ImageTransparency", 1 - v157 * v155 * v154, false, true)
+			end
+		end
+	end
+	if p139.editorSettings.previewParticles then
+		p139.level:TickParticles(v143, p140)
+	end
+	debug.profileend()
+end
+function v_u_22.DeleteObject(p166, p167)
+	-- upvalues: (copy) v_u_21
+	if p166.isPlayTesting then
+		return
+	else
+		local v168 = p166.level.Linker:GetPaired(p167)
+		if v168 then
+			p166:BatchDelete({ p167, v168 })
+		else
+			p166.historyManager:PerformCommand(v_u_21.BlockDeleteCommand.new(p166, p167))
+		end
+	end
+end
+function v_u_22.BatchDelete(p169, p170)
+	-- upvalues: (copy) v_u_21
+	if p169.isPlayTesting or #p170 == 0 then
+		return
+	elseif #p170 == 1 then
+		p169:DeleteObject(p170[1])
+	else
+		local v171 = {}
+		for _, v172 in p170 do
+			local v173 = v_u_21.BlockDeleteCommand.new
+			table.insert(v171, v173(p169, v172))
+			local v174 = p169.level.Linker:GetPaired(v172)
+			if v174 and not table.find(p170, v174) then
+				local v175 = v_u_21.BlockDeleteCommand.new
+				table.insert(v171, v175(p169, v174))
+			end
+		end
+		p169.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v171))
+	end
+end
+function v_u_22.RealignObjectToData(p176, p177)
+	local v178 = p176:GetObjectData(p177)
+	if v178 then
+		if v178.position.X < -50 then
+			v178.position = v178.position + Vector3.new(1, 0, 0) * (-50 - v178.position.X)
+		end
+		if v178.position.Y < -50 then
+			v178.position = v178.position + Vector3.new(0, 1, 0) * (-50 - v178.position.Y)
+		end
+		if v178.position.X > 8000 then
+			v178.position = v178.position + Vector3.new(1, 0, 0) * (8000 - v178.position.X)
+		end
+		if v178.position.Y > 60 then
+			v178.position = v178.position + Vector3.new(0, 1, 0) * (60 - v178.position.Y)
+		end
+		local v179, v180 = v178:GetHitboxTransform()
+		p177.CFrame = v178:GetCFrame()
+		p177.Size = v178:GetSize()
+		p177.Hitbox.Size = v180
+		p177.Hitbox.Position = v179
+		p177.SurfaceGui.ZOffset = v178.zorder
+		p176.level:FlipObject(p177, v178.flipX, v178.flipY)
+		if v178.toolbox_id == 446 then
+			p176.level:SetupParticleTrigger(p177)
+		end
+	end
+end
+function v_u_22.ScaleSelected(p181, p182, p183, p184, p185, p186, p187, p188)
+	-- upvalues: (copy) v_u_21
+	if p181.isPlayTesting then
+		return
+	else
+		local v189 = p186 or p181:GetMiddleOfSelection()
+		local v190 = p187 or Vector2.xAxis
+		local v191 = p188 or Vector2.yAxis
+		local v192, v193
+		if p185 then
+			v192 = nil
+			v193 = nil
+		else
+			v192, v193 = p181:GetScaleBounds()
+		end
+		local v194 = {}
+		for _, v195 in p181.selectedGameObjects do
+			local v196 = p181:GetObjectData(v195)
+			if v196 then
+				local v197 = v196.position
+				local v198 = v196.flipX
+				local v199 = v196.flipY
+				local v200 = v196.scaleX
+				local v201 = v196.scaleY
+				local v202 = v196.position - v189
+				local v203 = Vector2.new(v202.X, v202.Y)
+				local v204 = v203:Dot(v190)
+				local v205 = v203:Dot(v191)
+				local v206 = Vector2.new(v204 * p182, v205 * p183)
+				local v207 = v190 * v206.X + v191 * v206.Y
+				local v208 = v207.X
+				local v209 = v207.Y
+				local v210 = Vector3.new(v208, v209, 0)
+				v196.scaleX = v196.scaleX * p182
+				v196.scaleY = v196.scaleY * p183
+				if not p185 then
+					local v211 = v196.scaleX
+					v196.scaleX = math.clamp(v211, v192, v193)
+					local v212 = v196.scaleY
+					v196.scaleY = math.clamp(v212, v192, v193)
+				end
+				if v196.scaleX < 0 then
+					v196.scaleX = -v196.scaleX
+					v196.flipX = -v196.flipX
+				end
+				if v196.scaleY < 0 then
+					v196.scaleY = -v196.scaleY
+					v196.flipY = -v196.flipY
+				end
+				if not p184 then
+					v196.position = v189 + v210
+				end
+				local v213 = v_u_21.BlockScaleCommand.new
+				local v214 = v196.position
+				local v215 = v196.scaleX
+				local v216 = v196.scaleY
+				local v217 = v196.flipX
+				local v218 = v196.flipY
+				table.insert(v194, v213(p181, v195, v197, v200, v201, v198, v199, v214, v215, v216, v217, v218))
+			end
+		end
+		if #v194 == 1 then
+			p181.historyManager:PerformCommand(v194[1])
+		elseif #v194 > 1 then
+			p181.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v194))
+		end
+	end
+end
+function v_u_22.BeginScale(p219, p220)
+	p219._scaleStartData = {}
+	local v221 = p220 or p219:GetMiddleOfSelection()
+	p219._scaleStartMiddle = v221
+	for _, v222 in p219.selectedGameObjects do
+		local v223 = p219:GetObjectData(v222)
+		p219._scaleStartData[v222] = {
+			["pos"] = v223.position,
+			["scaleX"] = v223.scaleX,
+			["scaleY"] = v223.scaleY,
+			["flipX"] = v223.flipX,
+			["flipY"] = v223.flipY,
+			["offset"] = v223.position - v221
+		}
+	end
+end
+function v_u_22.UpdateScale(p224, p225, p226, p227, p228, p229, p230)
+	local v231 = p224._scaleStartMiddle
+	if v231 then
+		local v232 = p229 or Vector2.xAxis
+		local v233 = p230 or Vector2.yAxis
+		local v234, v235
+		if p228 then
+			v234 = nil
+			v235 = nil
+		else
+			v235, v234 = p224:GetScaleBounds()
+		end
+		for _, v236 in p224.selectedGameObjects do
+			local v237 = p224:GetObjectData(v236)
+			local v238 = p224._scaleStartData
+			if v238 then
+				v238 = p224._scaleStartData[v236]
+			end
+			if v237 and v238 then
+				v237.scaleX = v237.scaleX * p225
+				v237.scaleY = v237.scaleY * p226
+				if not p228 then
+					local v239 = v237.scaleX
+					v237.scaleX = math.clamp(v239, v235, v234)
+					local v240 = v237.scaleY
+					v237.scaleY = math.clamp(v240, v235, v234)
+				end
+				if v237.scaleX < 0 then
+					v237.scaleX = -v237.scaleX
+					v237.flipX = -v237.flipX
+				end
+				if v237.scaleY < 0 then
+					v237.scaleY = -v237.scaleY
+					v237.flipY = -v237.flipY
+				end
+				if not p227 then
+					local v241 = v238.offset
+					local v242 = Vector2.new(v241.X, v241.Y)
+					local v243 = v242:Dot(v232)
+					local v244 = v242:Dot(v233)
+					local v245 = Vector2.new(v243 * (v237.scaleX / v238.scaleX * (v237.flipX / v238.flipX)), v244 * (v237.scaleY / v238.scaleY * (v237.flipY / v238.flipY)))
+					local v246 = v232 * v245.X + v233 * v245.Y
+					local v247 = v246.X
+					local v248 = v246.Y
+					v237.position = v231 + Vector3.new(v247, v248, 0)
+				end
+				p224:RealignObjectToData(v236)
+			end
+		end
+	end
+end
+function v_u_22.EndScale(p249)
+	-- upvalues: (copy) v_u_21
+	if p249._scaleStartData then
+		local v250 = {}
+		for _, v251 in p249.selectedGameObjects do
+			local v252 = p249._scaleStartData[v251]
+			local v253 = p249:GetObjectData(v251)
+			if v252 and (v252.scaleX ~= v253.scaleX or v252.scaleY ~= v253.scaleY) then
+				local v254 = v_u_21.BlockScaleCommand.new
+				local v255 = v252.pos
+				local v256 = v252.scaleX
+				local v257 = v252.scaleY
+				local v258 = v252.flipX
+				local v259 = v252.flipY
+				local v260 = v253.position
+				local v261 = v253.scaleX
+				local v262 = v253.scaleY
+				local v263 = v253.flipX
+				local v264 = v253.flipY
+				table.insert(v250, v254(p249, v251, v255, v256, v257, v258, v259, v260, v261, v262, v263, v264))
+			end
+		end
+		if #v250 == 1 then
+			p249.historyManager:PerformCommand(v250[1])
+		elseif #v250 > 1 then
+			p249.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v250))
+		end
+		p249._scaleStartData = nil
+		p249._scaleStartMiddle = nil
+	end
+end
+function v_u_22.FlipSelected(p265, p266, p267)
+	-- upvalues: (copy) v_u_21
+	if p265.isPlayTesting then
+		return
+	else
+		local v268 = p265:GetMiddleOfSelection()
+		local v269 = {}
+		for _, v270 in p265.selectedGameObjects do
+			local _, _, v271 = v270.CFrame:ToOrientation()
+			local v272 = math.deg(v271) / 90
+			local v273 = math.round(v272) * 90 // 90 % 2
+			local v274 = math.abs(v273) == 1
+			local v275 = v_u_21.BlockFlipCommand.new
+			table.insert(v269, v275(p265, v270, v268, p266, p267, v274))
+		end
+		if #v269 == 1 then
+			p265.historyManager:PerformCommand(v269[1])
+		elseif #v269 > 1 then
+			p265.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v269))
+		end
+	end
+end
+function v_u_22.RotateSelected(p276, p277, p278)
+	-- upvalues: (copy) v_u_21
+	if not p276.isPlayTesting then
+		local v279 = p278 or p276:GetMiddleOfSelection()
+		local v280 = -p277
+		local v281 = math.rad(v280)
+		local v282 = math.cos(v281)
+		local v283 = -v281
+		local v284 = math.sin(v283)
+		local v285 = {}
+		for _, v286 in p276.selectedGameObjects do
+			local v287 = p276:GetObjectData(v286)
+			local v288 = v287.position
+			local v289 = v287.rotation
+			local v290 = v286.Position - v279
+			local v291 = v290.X * v282 + v290.Y * v284
+			local v292 = v290.Y * v282 - v290.X * v284
+			local v293 = Vector3.new(v291, v292)
+			local v294 = v_u_21.BlockRotateCommand.new
+			local v295 = v279 + v293
+			local v296 = (v287.rotation - p277) % 360
+			table.insert(v285, v294(p276, v286, v288, v289, v295, v296))
+		end
+		if #v285 == 1 then
+			p276.historyManager:PerformCommand(v285[1])
+		elseif #v285 > 1 then
+			p276.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v285))
+		end
+		p276.currentRotationOffset = (p276.currentRotationOffset - p277) % 360
+	end
+end
+function v_u_22.BeginRotate(p297)
+	p297._rotateStartData = {}
+	for _, v298 in p297.selectedGameObjects do
+		local v299 = p297:GetObjectData(v298)
+		p297._rotateStartData[v298] = {
+			["pos"] = v299.position,
+			["rot"] = v299.rotation
+		}
+	end
+end
+function v_u_22.UpdateRotate(p300, p301, p302)
+	local v303 = p302 or p300:GetMiddleOfSelection()
+	local v304 = -p301
+	local v305 = math.rad(v304)
+	local v306 = math.cos(v305)
+	local v307 = -v305
+	local v308 = math.sin(v307)
+	for _, v309 in p300.selectedGameObjects do
+		local v310 = p300:GetObjectData(v309)
+		local v311 = v310.position - v303
+		local v312 = v311.X * v306 + v311.Y * v308
+		local v313 = v311.Y * v306 - v311.X * v308
+		v310.position = v303 + Vector3.new(v312, v313)
+		v310.rotation = (v310.rotation - p301) % 360
+		p300:RealignObjectToData(v309)
+	end
+	p300.currentRotationOffset = (p300.currentRotationOffset - p301) % 360
+end
+function v_u_22.EndRotate(p314)
+	-- upvalues: (copy) v_u_21
+	if p314._rotateStartData then
+		local v315 = {}
+		for _, v316 in p314.selectedGameObjects do
+			local v317 = p314._rotateStartData[v316]
+			local v318 = p314:GetObjectData(v316)
+			if v317 and v317.rot ~= v318.rotation then
+				local v319 = v_u_21.BlockRotateCommand.new
+				local v320 = v317.pos
+				local v321 = v317.rot
+				local v322 = v318.position
+				local v323 = v318.rotation
+				table.insert(v315, v319(p314, v316, v320, v321, v322, v323))
+			end
+		end
+		if #v315 == 1 then
+			p314.historyManager:PerformCommand(v315[1])
+		elseif #v315 > 1 then
+			p314.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v315))
+		end
+		p314._rotateStartData = nil
+	end
+end
+function v_u_22.MoveSelected(p324, p325)
+	-- upvalues: (copy) v_u_21
+	if p324.isPlayTesting then
+		return
+	else
+		local v326 = {}
+		for _, v327 in p324.selectedGameObjects do
+			local v328 = p324:GetObjectData(v327).position
+			local v329 = v328 + p325
+			local v330 = v_u_21.BlockMoveCommand.new
+			table.insert(v326, v330(p324, v327, v328, v329))
+		end
+		if #v326 == 1 then
+			p324.historyManager:PerformCommand(v326[1])
+		elseif #v326 > 1 then
+			p324.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v326))
+		end
+	end
+end
+function v_u_22.BeginDrag(p331)
+	p331._dragStartPositions = {}
+	for _, v332 in p331.selectedGameObjects do
+		p331._dragStartPositions[v332] = p331:GetObjectData(v332).position
+	end
+end
+function v_u_22.UpdateDrag(p333, p334)
+	for _, v335 in p333.selectedGameObjects do
+		local v336 = p333:GetObjectData(v335)
+		v336.position = v336.position + p334
+		p333:RealignObjectToData(v335)
+		p333:UpdatePortalGamemodePreview(v335)
+	end
+end
+function v_u_22.EndDrag(p337)
+	-- upvalues: (copy) v_u_21
+	if p337._dragStartPositions then
+		local v338 = {}
+		for _, v339 in p337.selectedGameObjects do
+			local v340 = p337._dragStartPositions[v339]
+			local v341 = p337:GetObjectData(v339).position
+			if v340 and v340 ~= v341 then
+				local v342 = v_u_21.BlockMoveCommand.new
+				table.insert(v338, v342(p337, v339, v340, v341))
+			end
+		end
+		if #v338 == 1 then
+			p337.historyManager:PerformCommand(v338[1])
+		elseif #v338 > 1 then
+			p337.historyManager:PerformCommand(v_u_21.CompositeCommand.new(v338))
+		end
+		p337._dragStartPositions = nil
+	end
+end
+function v_u_22.GetMiddleOfSelection(p343)
+	-- upvalues: (copy) v_u_18
+	local v344 = Vector3.new(inf, inf, 0)
+	local v345 = Vector3.new(-inf, -inf, 0)
+	local v346 = false
+	for _, v347 in p343.selectedGameObjects do
+		local v348 = p343:GetObjectData(v347)
+		if v348 then
+			local v349 = v_u_18:GetPhysicalBlockFromToolboxId(v348.toolbox_id)
+			local v350 = v347.CFrame.RightVector * v349.Position.X * v348.flipX + v347.CFrame.UpVector * v349.Position.Y * v348.flipY
+			local v351 = v347.Position - v350
+			local v352 = v344.X
+			local v353 = v351.X
+			local v354 = math.min(v352, v353)
+			local v355 = v344.Y
+			local v356 = v351.Y
+			local v357 = math.min(v355, v356)
+			v344 = Vector3.new(v354, v357, 0)
+			local v358 = v345.X
+			local v359 = v351.X
+			local v360 = math.max(v358, v359)
+			local v361 = v345.Y
+			local v362 = v351.Y
+			local v363 = math.max(v361, v362)
+			v345 = Vector3.new(v360, v363, 0)
+			v346 = true
+		end
+	end
+	return not v346 and Vector3.new(0, 0, 0) or (v344 + v345) * 0.5
+end
+function v_u_22.GetObjectData(p364, p365)
+	return p364.level.GameObjects[p365]
+end
+function v_u_22.SetObjectData(p366, p367, p368)
+	if not p366.isPlayTesting then
+		p366.level.GameObjects[p367] = p368
+	end
+end
+function v_u_22.LinkSelected(p369)
+	-- upvalues: (copy) v_u_21, (copy) v_u_10
+	p369.historyManager:PerformCommand(v_u_21.BlockLinkCommand.new(p369, v_u_10:CloneTable(p369.selectedGameObjects)))
+end
+function v_u_22.UnlinkSelected(p370)
+	-- upvalues: (copy) v_u_21, (copy) v_u_10
+	p370.historyManager:PerformCommand(v_u_21.BlockUnlinkCommand.new(p370, v_u_10:CloneTable(p370.selectedGameObjects)))
+end
+function v_u_22.DeSelect(p371)
+	table.clear(p371.selectedGameObjects)
+	p371.SelectionChanged:Fire()
+end
+function v_u_22.SelectObject(p372, p373, p374)
+	if typeof(p373) == "table" then
+		if #p373 == 0 then
+			return
+		end
+		if p374 then
+			table.clear(p372.selectedGameObjects)
+		end
+		for _, v375 in p373 do
+			if not table.find(p372.selectedGameObjects, v375) then
+				local v376 = p372:GetObjectData(v375)
+				if not v376 then
+					return
+				end
+				if p372.currentEditorLayer <= -1 or (v376.editor_layer == p372.currentEditorLayer or v376.editor_layer2 == p372.currentEditorLayer and v376.editor_layer2 ~= 0) then
+					local v377 = p372.selectedGameObjects
+					table.insert(v377, v375)
+					for _, v378 in p372.level.Linker:GetLinkedBlocks(p373) do
+						if not table.find(p372.selectedGameObjects, v378) then
+							local v379 = p372.selectedGameObjects
+							table.insert(v379, v378)
+						end
+					end
+				end
+			end
+		end
+	else
+		if table.find(p372.selectedGameObjects, p373) then
+			return
+		end
+		local v380 = p372:GetObjectData(p373)
+		if not v380 then
+			return
+		end
+		if p372.currentEditorLayer > -1 and (v380.editor_layer ~= p372.currentEditorLayer and (v380.editor_layer2 ~= p372.currentEditorLayer or v380.editor_layer2 == 0)) then
+			return
+		end
+		if p374 then
+			table.clear(p372.selectedGameObjects)
+		end
+		local v381 = p372.selectedGameObjects
+		table.insert(v381, p373)
+		for _, v382 in p372.level.Linker:GetLinkedBlocks(p373) do
+			if not table.find(p372.selectedGameObjects, v382) then
+				local v383 = p372.selectedGameObjects
+				table.insert(v383, v382)
+			end
+		end
+	end
+	p372.SelectionChanged:Fire()
+end
+function v_u_22.Start(p_u_384)
+	-- upvalues: (copy) v_u_1, (copy) v_u_5
+	p_u_384.maid:GiveTask(v_u_1.RenderStepped:Connect(function(p385)
+		-- upvalues: (copy) p_u_384, (ref) v_u_5
+		if not p_u_384.isPlayTesting then
+			local v386 = p_u_384.level
+			v386.time_elapsed = v386.time_elapsed + p385
+			local v387
+			if p_u_384.editorSettings.previewMode then
+				local v388
+				if p_u_384.debugobjects.MusicLine and p_u_384.isMusicTesting then
+					v388 = p_u_384.debugobjects.MusicLine.Position.X
+				else
+					v388 = p_u_384.Camera:GetCameraX()
+				end
+				v387 = p_u_384:GetPreviewLevelSettingsAt(v388)
+			else
+				v387 = nil
+			end
+			p_u_384:UpdateOnScreenObjects(p385, v387)
+			if p_u_384.mouseDown then
+				local v389 = Vector2.new(v_u_5.X, v_u_5.Y)
+				local v390 = workspace.CurrentCamera.ViewportSize
+				local v391
+				if p_u_384.oldMousePosition == Vector2.zero then
+					v391 = Vector2.zero
+				else
+					v391 = v389 - p_u_384.oldMousePosition
+				end
+				local v392 = v391 / v390
+				local v393, v394 = p_u_384.Camera:GetBounds()
+				local v395 = Vector2.new(-v393, v394) * v392 * 2
+				local v396 = p_u_384
+				v396.movedDuringMouseDown = v396.movedDuringMouseDown + v395
+				local v397 = p_u_384
+				v397.distanceTotalMovedMouseDown = v397.distanceTotalMovedMouseDown + v395.Magnitude
+				if p_u_384.swipeEnabled then
+					if p_u_384.editorMode == 1 then
+						p_u_384:PlaceBlockAtMousePosition()
+					elseif p_u_384.editorMode == 2 then
+						local v398 = p_u_384:Get2dWorldPositionFromPixelCoordinates(p_u_384.mouseDownPosition.X, p_u_384.mouseDownPosition.Y)
+						local v399 = p_u_384:Get2dWorldPositionFromPixelCoordinates(v389.X, v389.Y)
+						if p_u_384.selectionBox then
+							p_u_384.selectionBox.Position = (v399 + v398) * 0.5
+							local v400 = p_u_384.selectionBox
+							local v401 = v398.X - v399.X
+							local v402 = math.abs(v401)
+							local v403 = v398.Y - v399.Y
+							local v404 = math.abs(v403)
+							v400.Size = Vector3.new(v402, v404, 1)
+						else
+							p_u_384.selectionBox = Instance.new("Part", p_u_384.level.Folder.Immutable)
+							p_u_384.selectionBox.Position = (v399 + v398) * 0.5
+							local v405 = p_u_384.selectionBox
+							local v406 = v398.X - v399.X
+							local v407 = math.abs(v406)
+							local v408 = v398.Y - v399.Y
+							local v409 = math.abs(v408)
+							v405.Size = Vector3.new(v407, v409, 1)
+							p_u_384.selectionBox.Anchored = true
+							p_u_384.selectionBox.Transparency = 1
+							p_u_384.selectionBox.CanCollide = false
+							p_u_384.selectionBox.CanQuery = false
+							p_u_384.selectionBox.CanTouch = false
+							local v410 = Instance.new("SurfaceGui", p_u_384.selectionBox)
+							v410.Face = Enum.NormalId.Back
+							v410.MaxDistance = (1 / 0)
+							v410.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+							v410.PixelsPerStud = 120
+							local v411 = Instance.new("ImageLabel", v410)
+							v411.Image = "rbxassetid://72041999500808"
+							v411.ImageColor3 = Color3.fromRGB(51, 255, 51)
+							v411.BackgroundTransparency = 1
+							v411.Position = UDim2.fromScale(0.5, 0.5)
+							v411.Size = UDim2.fromScale(1, 1)
+							v411.AnchorPoint = Vector2.one * 0.5
+							v411.ScaleType = Enum.ScaleType.Slice
+							v411.SliceCenter = Rect.new(5, 5, 123, 123)
+						end
+					elseif p_u_384.editorMode == 3 then
+						local v412 = p_u_384:RaycastToMousePosition()
+						if v412.Instance then
+							p_u_384:DeleteObject(v412.Instance)
+						end
+					end
+				elseif p_u_384.editorMode == 2 and (p_u_384.freemoveEnabled and p_u_384.moveWithFreeMove) then
+					local v413 = p_u_384
+					local v414 = v395.X
+					local v415 = v395.Y
+					v413:UpdateDrag(-Vector3.new(v414, v415, 0))
+				elseif p_u_384.distanceTotalMovedMouseDown > 1 / p_u_384.Camera.zoom then
+					local v416 = p_u_384.Camera
+					v416.cameraX = v416.cameraX + v395.X
+					local v417 = p_u_384.Camera
+					v417.cameraY = v417.cameraY + v395.Y
+				end
+				p_u_384.oldMousePosition = v389
+			else
+				p_u_384.oldMousePosition = Vector2.zero
+			end
+			local v418 = p_u_384.Camera.zoom
+			local _ = 30 / math.min(v418, 1)
+			if p_u_384.debugobjects.GroundLine then
+				local v419 = p_u_384.debugobjects.GroundLine
+				local v420 = p_u_384.Camera:GetCameraX()
+				v419.Position = Vector3.new(v420, -0.5, 0)
+				p_u_384.debugobjects.GroundLine.SurfaceGui.Enabled = not p_u_384.editorSettings.showGround
+			end
+			if p_u_384.debugobjects.StartingLine then
+				local v421 = p_u_384.debugobjects.StartingLine
+				local v422 = p_u_384.Camera:GetCameraY()
+				v421.Position = Vector3.new(-0.5, v422, 0)
+			end
+			p_u_384.Camera:Tick(p385)
+			p_u_384.level:UpdateScene(p_u_384.Camera, v387)
+			for _, v423 in p_u_384.portalBoundPreviews do
+				local v424 = v423.top_line
+				local v425 = p_u_384.Camera:GetCameraX()
+				local v426 = v423.top_line.Position.Y
+				v424.Position = Vector3.new(v425, v426, 0)
+				local v427 = v423.bottom_line
+				local v428 = p_u_384.Camera:GetCameraX()
+				local v429 = v423.bottom_line.Position.Y
+				v427.Position = Vector3.new(v428, v429, 0)
+			end
+		end
+	end))
+end
+function v_u_22.OnInputBegan(p430, p431)
+	-- upvalues: (copy) v_u_5
+	if not p430.isPlayTesting then
+		if p431.UserInputType == Enum.UserInputType.MouseButton1 or p431.UserInputType == Enum.UserInputType.Touch then
+			p430.mouseDown = true
+			p430.mouseDownPosition = Vector2.new(v_u_5.X, v_u_5.Y)
+			if p430.freemoveEnabled and p430.editorMode == 2 then
+				local v432 = p430:RaycastToMousePosition()
+				if v432.Instance then
+					p430:SelectObject(v432.Instance, true)
+					p430.moveWithFreeMove = v432.Instance
+					p430:BeginDrag()
+				end
+			end
+		end
+	end
+end
+function v_u_22.OnInputEnded(p433, p434)
+	-- upvalues: (copy) v_u_18
+	if p433.mouseDown then
+		if p434.UserInputType == Enum.UserInputType.MouseButton1 or p434.UserInputType == Enum.UserInputType.Touch then
+			p433.mouseDown = false
+			if p433.distanceTotalMovedMouseDown < 1 / p433.Camera.zoom and not (p433.swipeEnabled or p433.moveWithFreeMove) then
+				if p433.editorMode == 1 and p433.selectedBrush > 0 then
+					p433:PlaceBlockAtMousePosition()
+				elseif p433.editorMode == 2 then
+					local v435 = p433:RaycastToMousePosition()
+					if v435.Instance then
+						p433:SelectObject(v435.Instance, not p433.swipeEnabled)
+					end
+				elseif p433.editorMode == 3 then
+					local v436 = p433:RaycastToMousePosition()
+					if v436.Instance then
+						p433:DeleteObject(v436.Instance)
+					end
+				end
+			elseif p433.swipeEnabled or p433.selectionBox then
+				if p433.editorMode == 2 and p433.selectionBox then
+					for _, v437 in workspace:GetPartBoundsInBox(CFrame.new(p433.selectionBox.Position), p433.selectionBox.Size) do
+						if p433:GetObjectData(v437) then
+							p433:SelectObject(v437)
+						end
+					end
+					p433.selectionBox:Destroy()
+					p433.selectionBox = nil
+				end
+			elseif p433.snapEnabled and p433.moveWithFreeMove then
+				local v438 = p433.moveWithFreeMove.Position
+				local v439 = v438.X
+				local v440 = math.round(v439)
+				local v441 = v438.Y
+				local v442 = math.round(v441)
+				local v443 = Vector3.new(v440, v442, 0) - v438
+				local v444 = v_u_18:GetPhysicalBlockFromToolboxId(p433.level.GameObjects[p433.moveWithFreeMove].toolbox_id).Position
+				local _, _, v445 = p433.moveWithFreeMove.CFrame:ToOrientation()
+				local v446 = -v445
+				local v447 = math.cos(v446)
+				local v448 = -v445
+				local v449 = math.sin(v448)
+				local v450 = v444.X * v447 + v444.Y * v449
+				local v451 = v444.Y * v447 - v444.X * v449
+				p433:UpdateDrag(v443 + Vector3.new(v450, v451))
+			end
+			p433:EndDrag()
+			p433.moveWithFreeMove = nil
+			p433.movedDuringMouseDown = Vector2.zero
+			p433.distanceTotalMovedMouseDown = 0
+		end
+	end
+end
+function v_u_22.Destroy(p452)
+	p452:SaveSettings()
+	p452.maid:Destroy()
+	p452.level:Destroy()
+	table.clear(p452)
+end
+return v_u_22
+
+local v_u_1 = {
+	["Speeds"] = {
+		8.36820083682,
+		10.3761348898,
+		12.9032258065,
+		15.5945419103,
+		19.1846522782
+	}
+}
+function ProjectPoints(p2, p3)
+	local v4 = p3:Dot(p2[1])
+	local v5 = p3:Dot(p2[1])
+	for v6 = 2, #p2 do
+		local v7 = p3:Dot(p2[v6])
+		v4 = math.min(v4, v7)
+		v5 = math.max(v5, v7)
+	end
+	return v4, v5
+end
+function ProjectCircle(p8, p9, p10)
+	local v11 = p10:Dot(p8)
+	return v11 - p9, v11 + p9
+end
+function GetSquareCorners(p12, p13)
+	return {
+		Vector2.new(p12.X, p12.Y),
+		Vector2.new(p12.X, p13.Y),
+		Vector2.new(p13.X, p12.Y),
+		Vector2.new(p13.X, p13.Y)
+	}
+end
+function GetPolygonEdgeNormals(p14)
+	local v15 = {}
+	for v16 = 1, #p14 do
+		local v17 = p14[v16]
+		local v18 = p14[v16 % #p14 + 1] - v17
+		local v19 = Vector2.new(-v18.Y, v18.X).Unit
+		table.insert(v15, v19)
+	end
+	return v15
+end
+function GetClosestPointOnEdge(p20, p21, p22)
+	local v23 = p21 - p20
+	local v24 = (p22 - p20):Dot(v23) / v23:Dot(v23)
+	return p20 + v23 * math.clamp(v24, 0, 1)
+end
+function GetClosestPointOnPolygon(p25, p26)
+	local v27 = (1 / 0)
+	local v28 = nil
+	local v29 = nil
+	local v30 = nil
+	for v31 = 1, #p25 do
+		local v32 = p25[v31]
+		local v33 = p25[v31 % #p25 + 1]
+		local v34 = GetClosestPointOnEdge(v32, v33, p26)
+		local v35 = (p26 - v34).Magnitude
+		if v35 < v27 then
+			v30 = v31 % #p25 + 1
+			v29 = v31
+			v28 = v34
+			v27 = v35
+		end
+	end
+	return v28, v29, v30
+end
+function ClosestPointOnAABB(p36, p37, p38)
+	local v39 = p37 / 2
+	local v40 = p36 - Vector2.new(v39, v39)
+	local v41 = p36 + Vector2.new(v39, v39)
+	local v42 = Vector2.new
+	local v43 = p38.X
+	local v44 = v40.X
+	local v45 = v41.X
+	local v46 = math.clamp(v43, v44, v45)
+	local v47 = p38.Y
+	local v48 = v40.Y
+	local v49 = v41.Y
+	return v42(v46, (math.clamp(v47, v48, v49)))
+end
+function BuildPolygonFromObject(p50, p51)
+	local _, _, v52 = p50.CFrame:ToOrientation()
+	local v53 = math.cos(v52)
+	local v54 = -v52
+	local v55 = math.sin(v54)
+	local v56 = p50.Position.X
+	local v57 = p50.Position.Y
+	local v58 = table.create(#p51)
+	for v59 = 1, #p51 do
+		local v60 = p51[v59]
+		local v61 = v60.X * v53 + v60.Y * v55
+		local v62 = v60.Y * v53 - v60.X * v55
+		v58[v59] = Vector2.new(v61 + v56, v62 + v57)
+	end
+	return v58
+end
+function GetPolygonCenter(p63)
+	local v64 = Vector2.zero
+	for _, v65 in p63 do
+		v64 = v64 + v65
+	end
+	return v64 / #p63
+end
+function v_u_1.ConvexAgainstAxisAlignedCube(p66, p67, p68, p69)
+	local v70 = p68 / 2
+	local v71 = p67 - Vector2.new(v70, v70)
+	local v72 = p67 + Vector2.new(v70, v70)
+	local v73 = GetSquareCorners(v71, v72)
+	local v74 = GetPolygonEdgeNormals(p66)
+	for _, v75 in GetPolygonEdgeNormals(v73) do
+		table.insert(v74, v75)
+	end
+	local v76 = (1 / 0)
+	local v77 = nil
+	for _, v78 in ipairs(v74) do
+		local v79, v80 = ProjectPoints(p66, v78)
+		local v81, v82 = ProjectPoints(v73, v78)
+		if v80 < v81 or v82 < v79 then
+			return false, 0, 0, nil
+		end
+		local v83 = math.min(v80, v82) - math.max(v79, v81)
+		if v83 < v76 then
+			v77 = v78
+			v76 = v83
+		end
+	end
+	local v84 = GetPolygonCenter(p66)
+	if (v84 - p67):Dot(v77) > 0 then
+		v77 = -v77
+	end
+	if not p69 then
+		return true, v77.X * v76, v77.Y * v76, v77
+	end
+	local v85 = p69.Unit
+	local v86, v87 = ProjectPoints(p66, v85)
+	local v88, v89 = ProjectPoints(v73, v85)
+	local v90 = math.min(v87, v89) - math.max(v86, v88)
+	if (v84 - p67):Dot(v85) > 0 then
+		v85 = -v85
+	end
+	return true, v85.X * v90, v85.Y * v90, v85
+end
+function v_u_1.ConvexAgainstCircle(p91, p92, p93)
+	local v94 = GetPolygonEdgeNormals(p91)
+	local v95, v96, v97 = GetClosestPointOnPolygon(p91, p92)
+	if v95 and (p92 - v95).Magnitude > 0 then
+		local v98 = (p92 - v95).Unit
+		table.insert(v94, v98)
+	end
+	local v99 = (1 / 0)
+	local v100 = nil
+	for _, v101 in ipairs(v94) do
+		local v102, v103 = ProjectPoints(p91, v101)
+		local v104, v105 = ProjectCircle(p92, p93, v101)
+		if v103 < v104 or v105 < v102 then
+			return false, 0, 0, nil, nil
+		end
+		local v106 = math.min(v103, v105) - math.max(v102, v104)
+		local v107 = math.max(0, v106)
+		if v107 < v99 then
+			v100 = v101
+			v99 = v107
+		end
+	end
+	if (GetPolygonCenter(p91) - p92):Dot(v100) > 0 then
+		v100 = -v100
+	end
+	return true, v100.X * v99, v100.Y * v99, v96, v97, v100
+end
+function v_u_1.CircleAgainstAxisAlignedCube(p108, p109, p110, p111)
+	local v112 = p110 - Vector2.new(p111 / 2, p111 / 2)
+	local v113 = p110 + Vector2.new(p111 / 2, p111 / 2)
+	local v114 = GetSquareCorners(v112, v113)
+	local v115 = {}
+	for _, v116 in GetPolygonEdgeNormals(v114) do
+		table.insert(v115, v116)
+	end
+	local v117 = p108 - ClosestPointOnAABB(p110, p111, p108)
+	if v117.Magnitude > 0 then
+		local v118 = v117.Unit
+		table.insert(v115, v118)
+	end
+	local v119 = (1 / 0)
+	local v120 = nil
+	for _, v121 in ipairs(v115) do
+		local v122, v123 = ProjectCircle(p108, p109, v121)
+		local v124, v125 = ProjectPoints(v114, v121)
+		if v123 < v124 or v125 < v122 then
+			return false, 0, 0
+		end
+		local v126 = math.min(v123, v125) - math.max(v122, v124)
+		if v126 < v119 then
+			v120 = v121
+			v119 = v126
+		end
+	end
+	if not v120 then
+		return false, 0, 0
+	end
+	if (p108 - p110):Dot(v120) > 0 then
+		v120 = -v120
+	end
+	return true, v120.X * v119, v120.Y * v119
+end
+function v_u_1.RectAgainstAxisAlignedCube(p127, p128, p129, p130, p131)
+	-- upvalues: (copy) v_u_1
+	local v132 = {}
+	local v133 = -p127.Size.X * p128.flipX
+	local v134 = -p127.Size.Y * p128.flipY
+	local v135 = Vector3.new(v133, v134, 0) * 0.5
+	local v136 = -p127.Size.X * p128.flipX
+	local v137 = p127.Size.Y * p128.flipY
+	local v138 = Vector3.new(v136, v137, 0) * 0.5
+	local v139 = p127.Size.X * p128.flipX
+	local v140 = p127.Size.Y * p128.flipY
+	local v141 = Vector3.new(v139, v140, 0) * 0.5
+	local v142 = p127.Size.X * p128.flipX
+	local v143 = -p127.Size.Y * p128.flipY
+	__set_list(v132, 1, {v135, v138, v141, Vector3.new(v142, v143, 0) * 0.5})
+	local v144 = BuildPolygonFromObject(p127, v132)
+	return v_u_1.ConvexAgainstAxisAlignedCube(v144, p129, p130, p131)
+end
+function v_u_1.RectAgainstCircle(p145, p146, p147, p148)
+	-- upvalues: (copy) v_u_1
+	local v149 = {}
+	local v150 = -p145.Size.X * p146.flipX
+	local v151 = -p145.Size.Y * p146.flipY
+	local v152 = Vector3.new(v150, v151, 0) * 0.5
+	local v153 = -p145.Size.X * p146.flipX
+	local v154 = p145.Size.Y * p146.flipY
+	local v155 = Vector3.new(v153, v154, 0) * 0.5
+	local v156 = p145.Size.X * p146.flipX
+	local v157 = p145.Size.Y * p146.flipY
+	local v158 = Vector3.new(v156, v157, 0) * 0.5
+	local v159 = p145.Size.X * p146.flipX
+	local v160 = -p145.Size.Y * p146.flipY
+	__set_list(v149, 1, {v152, v155, v158, Vector3.new(v159, v160, 0) * 0.5})
+	local v161 = BuildPolygonFromObject(p145, v149)
+	return v_u_1.ConvexAgainstCircle(v161, p147, p148)
+end
+function v_u_1.SlopeAgainstCircle(p162, p163, p164, p165)
+	-- upvalues: (copy) v_u_1
+	local v166 = {}
+	local v167 = -p162.Size.X * p163.flipX
+	local v168 = -p162.Size.Y * p163.flipY
+	local v169 = Vector3.new(v167, v168, 0) * 0.5
+	local v170 = p162.Size.X * p163.flipX
+	local v171 = p162.Size.Y * p163.flipY
+	local v172 = Vector3.new(v170, v171, 0) * 0.5
+	local v173 = p162.Size.X * p163.flipX
+	local v174 = -p162.Size.Y * p163.flipY
+	__set_list(v166, 1, {v169, v172, Vector3.new(v173, v174, 0) * 0.5})
+	local v175 = BuildPolygonFromObject(p162, v166)
+	local v176 = (v175[2].Y - v175[1].Y) / (v175[2].X - v175[1].X)
+	local v177, v178, v179, v180, v181 = v_u_1.ConvexAgainstCircle(v175, p164, p165)
+	if (v180 == 1 or v181 == 1) and (v180 == 2 or v181 == 2) then
+		return v177, v178, v179, v176
+	else
+		return v177, v178, v179, 0
+	end
+end
+function v_u_1.SlopeAgainstAxisAlignedCube(p182, p183, p184, p185)
+	-- upvalues: (copy) v_u_1
+	local v186 = {}
+	local v187 = -p182.Size.X * p183.flipX
+	local v188 = -p182.Size.Y * p183.flipY
+	local v189 = Vector3.new(v187, v188, 0) * 0.5
+	local v190 = p182.Size.X * p183.flipX
+	local v191 = p182.Size.Y * p183.flipY
+	local v192 = Vector3.new(v190, v191, 0) * 0.5
+	local v193 = p182.Size.X * p183.flipX
+	local v194 = -p182.Size.Y * p183.flipY
+	__set_list(v186, 1, {v189, v192, Vector3.new(v193, v194, 0) * 0.5})
+	local v195 = BuildPolygonFromObject(p182, v186)
+	local _ = (v195[2].Y - v195[1].Y) / (v195[2].X - v195[1].X)
+	local v196, v197, v198 = v_u_1.ConvexAgainstAxisAlignedCube(v195, p184, p185)
+	return v196, v197, v198
+end
+return v_u_1
